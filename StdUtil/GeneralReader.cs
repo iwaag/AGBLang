@@ -2,10 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using AGBLang;
-using System.Text;
+using AGDev;
 
-namespace AGDev.StdUtil {
+namespace AGBLang.StdUtil {
 	public interface GenericReader {
 		void ReadBool(string name, bool value);
 		GenericReader GetSubReader(string name);
@@ -26,23 +25,27 @@ namespace AGDev.StdUtil {
 					if (wordBeingBuilt == null)
 						wordBeingBuilt = new IGAnlys_Word();
 					wordBeingBuilt.AddMorphemeText(morpheme.word);
-				} else if (wordBeingBuilt != null) {
+				}
+				else if (wordBeingBuilt != null) {
 					analyzers.Add(ModifyAnalyzer(wordBeingBuilt, ref doIgnoreNext, ref isUnreadableNext));
 					wordBeingBuilt = null;
 				}
 				if (morpheme.id == 1) {
 					if (int.TryParse(morpheme.word, out int morphemeID)) {
 						analyzers.Add(ModifyAnalyzer(new IGAnlys_Quote { morphemeID = morphemeID }, ref doIgnoreNext, ref isUnreadableNext));
-					} else {
-						if(!doIgnoreNext)
+					}
+					else {
+						if (!doIgnoreNext)
 							analyzers.Add(dict.dict[morpheme.word]);
 						else
 							analyzers.Add(new IGAnlys_IgnoreBlock { baseAnalyzer = dict.dict[morpheme.word] });
 						doIgnoreNext = false;
 					}
-				} else if (morpheme.id == 2) {
+				}
+				else if (morpheme.id == 2) {
 					doIgnoreNext = true;
-				} else if (morpheme.id == 3) {
+				}
+				else if (morpheme.id == 3) {
 					isUnreadableNext = true;
 				}
 			}
@@ -75,7 +78,8 @@ namespace AGDev.StdUtil {
 			var result = anlys;
 			if (doIgnoreNext) {
 				result = new IGAnlys_IgnoreBlock { baseAnalyzer = anlys };
-			} else if (isUnreadableNext) {
+			}
+			else if (isUnreadableNext) {
 				result = new IGAnlys_Unreadable { lasyAnlys = anlys };
 			}
 			doIgnoreNext = false;
@@ -84,10 +88,10 @@ namespace AGDev.StdUtil {
 		}
 	}
 	public class FormatReader : GenericReader {
-		public static IncrementalGAnalyzer cojunctionIGAnlys;
-		public static IncrGAnlysDictionary gAnlysDict;
-		public static FormToGAnlys fReader;
-		public static Dictionary<string, GrammarBlock> metaInfos;
+		public IncrementalGAnalyzer cojunctionIGAnlys;
+		public IncrGAnlysDictionary gAnlysDict;
+		public FormToGAnlys fReader;
+		public Dictionary<string, GrammarBlock> metaInfos;
 		public List<string> forms = new List<string>();
 		public List<string> names = new List<string>();
 		public List<string> categoriess = new List<string>();
@@ -221,7 +225,8 @@ namespace AGDev.StdUtil {
 		void GenericReader.ReadString(string name, string value) {
 			if (name.Equals("TemplateName", StringComparison.CurrentCultureIgnoreCase) || name.Equals("TemplateNames", StringComparison.CurrentCultureIgnoreCase)) {
 				templateNames.Add(value);
-			} else {
+			}
+			else {
 				(template as GenericReader).ReadString(name, value);
 			}
 		}
@@ -233,9 +238,11 @@ namespace AGDev.StdUtil {
 		GenericReader GenericReader.GetSubReader(string name) {
 			if (name.Equals("GeneralFormat", StringComparison.CurrentCultureIgnoreCase) || name.Equals("GeneralFormats", StringComparison.CurrentCultureIgnoreCase)) {
 				return new FormatReader { };
-			} else if (name.Equals("Template", StringComparison.CurrentCultureIgnoreCase) || name.Equals("Templates", StringComparison.CurrentCultureIgnoreCase)) {
+			}
+			else if (name.Equals("Template", StringComparison.CurrentCultureIgnoreCase) || name.Equals("Templates", StringComparison.CurrentCultureIgnoreCase)) {
 				return new TemplateReader { templateDict = templateDict };
-			} else if (templateDict.TryGetValue(name, out var formatReader)) {
+			}
+			else if (templateDict.TryGetValue(name, out var formatReader)) {
 				return formatReader.Clone();
 			}
 			return null;
@@ -261,7 +268,8 @@ namespace AGDev.StdUtil {
 					if (jsonReader.TokenType == JsonToken.PropertyName) {
 						propertyNames.Pop();
 						propertyNames.Push(jsonReader.Value as string);
-					} else if (jsonReader.TokenType == JsonToken.StartObject) {
+					}
+					else if (jsonReader.TokenType == JsonToken.StartObject) {
 						if (propertyNames.Count > 0) {
 							var sub = subReader.Peek().GetSubReader(propertyNames.Peek());
 							if (sub != null)
@@ -269,21 +277,26 @@ namespace AGDev.StdUtil {
 							else {
 								subReader.Push(subReader.Peek());
 							}
-						} else {
+						}
+						else {
 							subReader.Push(subReader.Peek());
 						}
 						propertyNames.Push("");
-					} else if (jsonReader.TokenType == JsonToken.EndObject) {
+					}
+					else if (jsonReader.TokenType == JsonToken.EndObject) {
 						var last = subReader.Peek();
 						subReader.Pop();
 						if (last != subReader.Peek())
 							last.Conclude();
 						propertyNames.Pop();
-					} else if (jsonReader.TokenType == JsonToken.String) {
+					}
+					else if (jsonReader.TokenType == JsonToken.String) {
 						subReader.Peek().ReadString(propertyNames.Peek(), (string)jsonReader.Value);
-					} else if (jsonReader.TokenType == JsonToken.Float) {
+					}
+					else if (jsonReader.TokenType == JsonToken.Float) {
 						//subReader.Peek().ReadString(propertyNames.Peek(), (float)jsonReader.Value);
-					} else if (jsonReader.TokenType == JsonToken.Boolean) {
+					}
+					else if (jsonReader.TokenType == JsonToken.Boolean) {
 						subReader.Peek().ReadBool(propertyNames.Peek(), (bool)jsonReader.Value);
 					}
 				}

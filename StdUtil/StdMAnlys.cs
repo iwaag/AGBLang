@@ -1,9 +1,8 @@
-﻿using System;
+﻿using AGDev;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 
-namespace AGDev.StdUtil {
+namespace AGBLang.StdUtil {
 	public class StdMAnalyzer : MorphemeAnalyzer {
 		public List<BlockReader> blockReaderes = new List<BlockReader>();
 		public List<GeneralReader> generalReaders = new List<GeneralReader>();
@@ -55,7 +54,7 @@ namespace AGDev.StdUtil {
 				return unitCluster;
 			return null;
 		}
-		void MorphemeAnalyzer.AnalyzeForrmat(string naturalLanguage, AsyncCollector<DivisibleEnumerable<Morpheme>> listener) {
+		void MorphemeAnalyzer.AnalyzeFormat(string naturalLanguage, AsyncCollector<DivisibleEnumerable<Morpheme>> listener) {
 			var result = AnalyzeImmediate(naturalLanguage);
 			if(result != null)
 				listener.Collect(result);

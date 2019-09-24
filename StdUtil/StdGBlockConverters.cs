@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AGBLang;
 using System.Text;
 
-namespace AGDev.StdUtil {
+namespace AGBLang.StdUtil {
 	class GBlockConvertUtility {
 		public static void ApplyModAndMeta(
 			MutableGrammarBlock newBlock,

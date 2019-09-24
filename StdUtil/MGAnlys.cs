@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using AGBLang;
-namespace AGDev.StdUtil {
+﻿using System.Collections.Generic;
+using AGDev;
+namespace AGBLang.StdUtil {
 	public class MGSyntacticProcessor : NaturalLanguageProcessor {
 		public MorphemeAnalyzer mAnalyzer;
 		public GrammarAnalyzer gAnalyzer;
 		void NaturalLanguageProcessor.PerformSyntacticProcess(string naturalLanguage, AsyncCollector<GrammarBlock> listener) {
-			mAnalyzer.AnalyzeForrmat(naturalLanguage, new FLis { parent = this, rootListener = listener});
+			mAnalyzer.AnalyzeFormat(naturalLanguage, new FLis { parent = this, rootListener = listener});
 		}
 		public class FLis : AsyncCollector<DivisibleEnumerable<Morpheme>> {
 			public MGSyntacticProcessor parent;
@@ -56,7 +54,7 @@ namespace AGDev.StdUtil {
 		DivisibleEnumerable<Type> GetFollowing(int advanceCount);
 	}
 	public interface MorphemeAnalyzer {
-		void AnalyzeForrmat(string naturalLanguage, AsyncCollector<DivisibleEnumerable<Morpheme>> listener);
+		void AnalyzeFormat(string naturalLanguage, AsyncCollector<DivisibleEnumerable<Morpheme>> listener);
 	}
 	#endregion
 	#region grammar analysis

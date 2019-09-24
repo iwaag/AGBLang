@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using AGBLang;
-namespace AGDev.StdUtil {
+using AGDev;
+namespace AGBLang.StdUtil {
 	public class StdGrammarAnalyzer : GrammarAnalyzer {
 		public IncrementalGAnalyzer incrGAnalyzer;
 		void GrammarAnalyzer.AnalyzeGrammar(GAnlysInput input, AsyncCollector<GrammarBlock> listener) {

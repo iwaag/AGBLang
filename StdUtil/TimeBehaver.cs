@@ -1,6 +1,10 @@
 ﻿using System.Collections.Generic;
-using AGBLang;
-namespace AGDev.StdUtil {
+using AGDev;
+
+namespace AGBLang.StdUtil {
+	public class Required {
+		public static float deltaTime;
+	}
 	class TimeBehaver : Behaver {
 		public class CountDownCheckTrigger : BehaviorCheckTrigger {
 			public float triggerTime = 0;
@@ -73,7 +77,7 @@ namespace AGDev.StdUtil {
         public void Update() {
             foreach (var trigger in triggers) {
                 foreach (var session in trigger.sessions) {
-                    session.Elapse(UnityEngine.Time.deltaTime);
+                    session.Elapse(Required.deltaTime);
                 }
             }
             foreach (var trigger in triggers) {

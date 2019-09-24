@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
-using AGBLang;
-namespace AGDev.StdUtil {
+using AGDev;
+
+namespace AGBLang.StdUtil {
 	public interface GBlockConvertListener {
 		void AdditionalEdit(MutableGrammarBlock mgBlock);
 		GBlockConverter subBlockConverter { get; }
