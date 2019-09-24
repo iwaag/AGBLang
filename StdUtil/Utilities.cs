@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Text;
 using AGDev;
 namespace AGBLang.StdUtil {
 	public class ClusterBehaviorSetter : BehaviorSetter {
@@ -95,9 +96,59 @@ namespace AGBLang.StdUtil {
 		}
 	}
 	#region grammar block
-	[System.Serializable]
-	[DataContract]
+	public class JsonGrammarBlockVisitor : GrammarBlockVisitor {
+		public StringBuilder builder;
+		public bool isFirstElement = true;
+		void GrammarBlockVisitor.IfClusterGrammarBlock(ClusterGrammarBlock cluster) {
+			if (!isFirstElement)
+				builder.Append(",");
+			isFirstElement = false;
+			builder.Append("\"cluster\":[");
+			int clusterIndex = 0;
+			foreach (var subBlock in cluster.blocks) {
+				if (clusterIndex > 0)
+					builder.Append(",");
+				builder.Append("{");
+				GrammarBlockUtils.VisitGrammarBlock(subBlock, new JsonGrammarBlockVisitor { builder = builder });
+				builder.Append("}");
+				clusterIndex++;
+			}
+			builder.Append("]");
+		}
+
+		void GrammarBlockVisitor.IfGrammarUnit(GrammarUnit unit) {
+			if (!isFirstElement)
+				builder.Append(",");
+			isFirstElement = false;
+			builder.Append("\"unit\":\"" + unit.word + "\"");
+		}
+
+		void GrammarBlockVisitor.IfHasMetaInfo(GrammarBlock meta) {
+			if (!isFirstElement)
+				builder.Append(",");
+			isFirstElement = false;
+			builder.Append("\"meta\":{");
+			GrammarBlockUtils.VisitGrammarBlock(meta, new JsonGrammarBlockVisitor { builder = builder });
+			builder.Append("}");
+		}
+
+		void GrammarBlockVisitor.IfHasModifier(GrammarBlock mod) {
+			if (!isFirstElement)
+				builder.Append(",");
+			isFirstElement = false;
+			builder.Append("\"mod\":{");
+			GrammarBlockUtils.VisitGrammarBlock(mod, new JsonGrammarBlockVisitor { builder = builder });
+			builder.Append("}");
+		}
+	}
 	public class GrammarBlockUtils {
+		public static string ToJson(GrammarBlock gBlock) {
+			var resultBuilder = new StringBuilder();
+			resultBuilder.Append("{");
+			VisitGrammarBlock(gBlock, new JsonGrammarBlockVisitor { builder = resultBuilder });
+			resultBuilder.Append("}");
+			return resultBuilder.ToString();
+		}
 		public static void VisitGrammarBlock(GrammarBlock gBlock, GrammarBlockVisitor visitor) {
 			if (gBlock.metaInfo != null) {
 				visitor.IfHasMetaInfo(gBlock.metaInfo);
@@ -479,6 +530,8 @@ namespace AGBLang.StdUtil {
 			}
 		}
 	}
+	[System.Serializable]
+	[DataContract]
 	public class DeserializedGBlock : GrammarBlock, GrammarUnit, ClusterGrammarBlock {
 		[DataMember]
 		public SDeserializedGBlock mod;
