@@ -97,8 +97,387 @@ namespace AGBLang.StdUtil {
 	#region grammar block
 	[System.Serializable]
 	[DataContract]
-	public class GBlockUtilities {
- 
+	public class GrammarBlockUtils {
+		public static void VisitGrammarBlock(GrammarBlock gBlock, GrammarBlockVisitor visitor) {
+			if (gBlock.metaInfo != null) {
+				visitor.IfHasMetaInfo(gBlock.metaInfo);
+			}
+			if (gBlock.unit != null) {
+				visitor.IfGrammarUnit(gBlock.unit);
+			}
+			else if (gBlock.cluster != null) {
+				visitor.IfClusterGrammarBlock(gBlock.cluster);
+			}
+			if (gBlock.modifier != null) {
+				visitor.IfHasModifier(gBlock.modifier);
+			}
+		}
+		public static BehaviorExpression GBlockToBExpression(GrammarBlock block) {
+			return new StdBehaviorExpression(block.cluster.blocks[0], block.cluster.blocks[1].unit);
+		}
+		public static bool IsUnit(GrammarBlock block, string word) {
+			if (block == null)
+				return false;
+			if (block.unit != null) {
+				return string.Compare(block.unit.word, word, true) == 0;
+			}
+			return false;
+		}
+		public static bool IsUnit(GrammarBlock block, System.Func<string, bool> checkUnit) {
+			if (block == null)
+				return false;
+			if (block.unit != null) {
+				return checkUnit(block.unit.word);
+			}
+			return false;
+		}
+		public static GrammarBlock ShallowSeek(GrammarBlock block, System.Func<string, bool> checkUnit) {
+			if (block == null)
+				return null;
+			if (IsUnit(block, checkUnit))
+				return block;
+			else {
+				if (block.cluster != null) {
+					foreach (var element in block.cluster.blocks) {
+						if (IsUnit(element, checkUnit))
+							return element;
+					}
+				}
+			}
+			return null;
+		}
+		public static GrammarBlock ShallowSeek(GrammarBlock block, string word) {
+			if (block == null)
+				return null;
+			if (IsUnit(block, word))
+				return block;
+			else {
+				if (block.cluster != null) {
+					foreach (var element in block.cluster.blocks) {
+						if (IsUnit(element, word))
+							return element;
+					}
+				}
+			}
+			return null;
+		}
+		public static GrammarBlock ShallowSeekByMetaInfo(GrammarBlock block, string meta, string clusterToSeek = null) {
+			if (block == null)
+				return null;
+			if (block.metaInfo != null) {
+				var found = ShallowSeek(block.metaInfo, meta);
+				if (found != null) {
+					return block;
+				}
+			}
+
+			if (block.cluster != null) {
+				if (clusterToSeek == null || HasMetaInfo(block, clusterToSeek)) {
+					foreach (var element in block.cluster.blocks) {
+						if (element.metaInfo != null) {
+							var found = ShallowSeek(element.metaInfo, meta);
+							if (found != null) {
+								return element;
+							}
+						}
+					}
+				}
+			}
+			return null;
+		}
+		public static bool HasMetaInfo(GrammarBlock gBlock, string metaInfo) {
+			if (string.IsNullOrEmpty(metaInfo))
+				return false;
+			if (gBlock != null ? gBlock.metaInfo != null : false) {
+				return ShallowSeek(gBlock.metaInfo, metaInfo) != null;
+			}
+			return false;
+		}
+		public static GrammarBlock ShallowSeekModifier(GrammarBlock block, string matchWord) {
+			if (block != null ? block.modifier != null : false) {
+				return ShallowSeek(block.modifier, matchWord);
+			}
+			return null;
+		}
+		public static void DeepForEachUnit(GrammarBlock gBlock, System.Action<GrammarUnit> func, System.Func<GrammarBlock, GrammarBlock, bool> filter, GrammarBlock parent = null) {
+			if (gBlock == null)
+				return;
+			if (filter(gBlock, parent)) {
+				if (gBlock.unit != null) {
+					func(gBlock.unit);
+				}
+				else if (gBlock.cluster != null) {
+					foreach (var subBlock in gBlock.cluster.blocks) {
+						if (filter(subBlock, gBlock)) {
+							DeepForEachUnit(subBlock, func, filter, parent);
+						}
+					}
+				}
+			}
+		}
+		public static void DeepForEachBlockUnit(GrammarBlock gBlock, System.Action<GrammarUnit> func, string blockMeta, GrammarBlock parent = null) {
+			if (gBlock == null)
+				return;
+			if (CheckBlock(gBlock, blockMeta, parent)) {
+				if (gBlock.unit != null) {
+					func(gBlock.unit);
+				}
+				else if (gBlock.cluster != null) {
+					foreach (var subBlock in gBlock.cluster.blocks) {
+						if (CheckBlock(subBlock, blockMeta, gBlock)) {
+							DeepForEachBlockUnit(subBlock, func, blockMeta, gBlock);
+						}
+					}
+				}
+			}
+		}
+		public static bool CheckBlock(GrammarBlock gBlock, string blockMeta, GrammarBlock parent = null) {
+			//if(GrammarBlockUtils.HasMetaInfo(gBlock, StdMetaInfos.modifierCluster.word))
+			if (gBlock.cluster != null)
+				return GrammarBlockUtils.HasMetaInfo(gBlock, blockMeta);
+			if (gBlock.unit != null) {
+				if (GrammarBlockUtils.HasMetaInfo(gBlock, blockMeta))
+					return true;
+				if (parent != null) {
+					return GrammarBlockUtils.HasMetaInfo(parent, blockMeta);
+				}
+			}
+			return false;
+		}
+		public static void ShallowForEachUnits(GrammarBlock gBlock, System.Action<GrammarUnit> func, string clusterToSeek = null) {
+			if (gBlock == null)
+				return;
+			if (gBlock.cluster != null) {
+				if (clusterToSeek == null || HasMetaInfo(gBlock, clusterToSeek)) {
+					foreach (var sub in gBlock.cluster.blocks) {
+						if (sub.unit != null)
+							func(sub.unit);
+					}
+				}
+			}
+			else {
+				func(gBlock.unit);
+			}
+		}
+		public static void ForEachUnitsDeep(GrammarBlock gBlock, System.Action<GrammarUnit> func, string clusterToSeek = null) {
+			if (gBlock == null)
+				return;
+			if (clusterToSeek == null || HasMetaInfo(gBlock, clusterToSeek)) {
+				if (gBlock.cluster != null) {
+					foreach (var sub in gBlock.cluster.blocks) {
+						ForEachUnitsDeep(sub, func, clusterToSeek);
+					}
+				}
+				else {
+					func(gBlock.unit);
+				}
+			}
+		}
+		public static void ForEach(GrammarBlock gBlock, string metaInfo, System.Action<GrammarBlock> func, string clusterToSeek = null) {
+			if (HasMetaInfo(gBlock, metaInfo)) {
+				func(gBlock);
+			}
+			if (clusterToSeek == null || HasMetaInfo(gBlock, clusterToSeek)) {
+				if (gBlock.cluster != null) {
+					foreach (var sub in gBlock.cluster.blocks) {
+						if (HasMetaInfo(sub, metaInfo)) {
+							func(sub);
+						}
+					}
+				}
+			}
+		}
+		public static GrammarBlock GetPrepositoinContent(GrammarBlock block, string preposition) {
+			var prepositoinBlock = ShallowSeekModifier(block, preposition);
+			return prepositoinBlock.modifier;
+		}
+
+
+
+		public static void ForEachUnits(GrammarBlock gBlock, System.Action<GrammarUnit> func) {
+			if (gBlock == null)
+				return;
+			if (gBlock.cluster != null) {
+				foreach (var sub in gBlock.cluster.blocks) {
+					ForEachUnits(sub, func);
+				}
+			}
+			else {
+				func(gBlock.unit);
+			}
+		}
+		public static void ForEach(GrammarBlock gBlock, string metaInfo, System.Action<GrammarBlock> func) {
+			if (HasMetaInfo(gBlock, metaInfo)) {
+				func(gBlock);
+			}
+			if (gBlock.cluster != null) {
+				foreach (var sub in gBlock.cluster.blocks) {
+					if (HasMetaInfo(sub, metaInfo)) {
+						func(sub);
+					}
+				}
+			}
+		}
+	}
+	public interface GrammarBlockVisitor {
+		void IfHasMetaInfo(GrammarBlock meta);
+		void IfGrammarUnit(GrammarUnit unit);
+		void IfClusterGrammarBlock(ClusterGrammarBlock cluster);
+		void IfHasModifier(GrammarBlock mod);
+	}
+	static class StdMetaInfos {
+		public static readonly GrammarUnit sentenceCluster = new MinimumGBUnit { word = "SentenceCluster" };
+		public static readonly GrammarUnit nominalBlock = new MinimumGBUnit { word = "NominalBlock" };
+		public static readonly GrammarUnit verbalBlock = new MinimumGBUnit { word = "VerbalBlock" };
+		public static readonly GrammarUnit quoteBlock = new MinimumGBUnit { word = "QuoteBlockMarker" };
+		public static readonly GrammarUnit sv = new MinimumGBUnit { word = "SV" };
+		public static readonly GrammarUnit conditionSV = new MinimumGBUnit { word = "ConditionSV" };
+		public static readonly GrammarUnit negated = new MinimumGBUnit { word = "Negated" };
+		public static readonly GrammarUnit title = new MinimumGBUnit { word = "Title" };
+		public static readonly GrammarUnit clusterExtractable = new MinimumGBUnit { word = "ClusterExtractable" };
+
+		public static readonly GrammarUnit metaCluster = new MinimumGBUnit { word = "MetaCluster" };
+		public static readonly GrammarUnit anonymousCommand = new MinimumGBUnit { word = "AnonymousCommand" };
+		public static readonly GrammarUnit modifierCluster = new MinimumGBUnit { word = "ModifierCluster" };
+		public static readonly GrammarUnit quoteSV = new MinimumGBUnit { word = "QuoteSV" };
+		public static readonly GrammarUnit pronoun = new MinimumGBUnit { word = "Pronoun" };
+		public static readonly GrammarUnit plural = new MinimumGBUnit { word = "Plural" };
+		public static readonly GrammarUnit unreadable = new MinimumGBUnit { word = "Unreadable" };
+	}
+	public class MinimumGBUnit : GrammarUnit {
+		public string word;
+		string GrammarUnit.word => word;
+		GrammarUnit GrammarBlock.unit => this;
+		ClusterGrammarBlock GrammarBlock.cluster => null;
+		GrammarBlock GrammarBlock.modifier => null;
+		GrammarBlock GrammarBlock.metaInfo => null;
+	}
+	public class StdBehaviorExpression : BehaviorExpression {
+		public StdBehaviorExpression(GrammarBlock _subject, GrammarUnit _verb) {
+			clusterGBlock = new StdMutableClusterGBlock();
+			clusterGBlock.subBlocks.Add(_subject);
+			clusterGBlock.subBlocks.Add(_verb);
+			(clusterGBlock as MutableClusterGrammarBlock).AddModifier(StdMetaInfos.sv);
+		}
+		public StdMutableClusterGBlock clusterGBlock;
+		GrammarBlock BehaviorExpression.subject { get { return clusterGBlock.subBlocks[0]; } }
+		GrammarUnit BehaviorExpression.verb { get { return clusterGBlock.subBlocks[1].unit; } }
+		GrammarBlock BehaviorExpression.asGBlock { get { return clusterGBlock; } }
+	}
+	public class StdMutableGUnit : MutableGrammarUnit {
+		public string word;
+		public StdMutableGUnit(string _word) => word = _word;
+		public StdMutableGUnit() => word = "";
+		ExpansiveMutableGBlock modifier;
+		ExpansiveMutableGBlock metaInfo;
+		MutableGrammarUnit MutableGrammarBlock.mUnit => this;
+		MutableClusterGrammarBlock MutableGrammarBlock.mCluster => null;
+		string GrammarUnit.word => word;
+		GrammarUnit GrammarBlock.unit => this;
+		ClusterGrammarBlock GrammarBlock.cluster => null;
+		GrammarBlock GrammarBlock.modifier => modifier;
+		GrammarBlock GrammarBlock.metaInfo => metaInfo;
+		void MutableGrammarBlock.AddMetaInfo(GrammarBlock block) {
+			if (metaInfo == null) {
+				metaInfo = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.metaCluster };
+			}
+			metaInfo.AddBlock(block);
+		}
+		void MutableGrammarBlock.AddModifier(GrammarBlock block) {
+			if (modifier == null) {
+				modifier = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.modifierCluster };
+			}
+			modifier.AddBlock(block);
+		}
+		void MutableGrammarUnit.SetWord(string _word) {
+			word = _word;
+		}
+	}
+	public class StdMutableClusterGBlock : MutableClusterGrammarBlock {
+		public List<GrammarBlock> subBlocks = new List<GrammarBlock>();
+		ExpansiveMutableGBlock modifier;
+		ExpansiveMutableGBlock metaInfo;
+		MutableGrammarUnit MutableGrammarBlock.mUnit => null;
+		MutableClusterGrammarBlock MutableGrammarBlock.mCluster => this;
+		GrammarUnit GrammarBlock.unit => null;
+		ClusterGrammarBlock GrammarBlock.cluster => this;
+		GrammarBlock GrammarBlock.modifier => modifier;
+
+		GrammarBlock GrammarBlock.metaInfo => metaInfo;
+
+		IList<GrammarBlock> ClusterGrammarBlock.blocks => subBlocks;
+
+		void MutableClusterGrammarBlock.AddBlock(GrammarBlock grammarBlock) {
+			subBlocks.Add(grammarBlock);
+		}
+
+		void MutableGrammarBlock.AddMetaInfo(GrammarBlock block) {
+			if (metaInfo == null) {
+				metaInfo = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.metaCluster };
+			}
+			metaInfo.AddBlock(block);
+		}
+
+		void MutableGrammarBlock.AddModifier(GrammarBlock block) {
+			if (modifier == null) {
+				modifier = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.modifierCluster };
+			}
+			modifier.AddBlock(block);
+		}
+	}
+	public class ExpansiveMutableGBlock : GrammarBlock {
+		public GrammarBlock content {
+			get {
+				if (unit != null)
+					return unit;
+				else
+					return cluster;
+			}
+		}
+		public GrammarBlock metaForCluster;
+		GrammarBlock modifier;
+		GrammarBlock metaInfo;
+		StdMutableClusterGBlock myCluster;
+		List<GrammarBlock> blocks = new List<GrammarBlock>();
+		ClusterGrammarBlock cluster;
+		GrammarUnit unit;
+
+		GrammarBlock GrammarBlock.modifier => modifier;
+
+		GrammarBlock GrammarBlock.metaInfo => metaInfo;
+
+		GrammarUnit GrammarBlock.unit => unit;
+
+		ClusterGrammarBlock GrammarBlock.cluster => cluster;
+		public void AddBlock(GrammarBlock gramarBlock) {
+			if (GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.metaCluster.word) || GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.clusterExtractable.word)) {
+				foreach (var subBlock in gramarBlock.cluster.blocks) {
+					blocks.Add(subBlock);
+				}
+			}
+			else
+				blocks.Add(gramarBlock);
+			if (blocks.Count == 1) {
+				if (gramarBlock.unit != null)
+					unit = gramarBlock.unit;
+				else {
+					cluster = gramarBlock.cluster;
+				}
+				modifier = gramarBlock.modifier;
+				metaInfo = gramarBlock.metaInfo;
+			}
+			else {
+				if (myCluster == null) {
+					myCluster = new StdMutableClusterGBlock();
+					myCluster.subBlocks = blocks;
+					cluster = myCluster;
+					unit = null;
+				}
+				modifier = null;
+				metaInfo = metaForCluster;
+
+			}
+		}
 	}
 	public class DeserializedGBlock : GrammarBlock, GrammarUnit, ClusterGrammarBlock {
 		[DataMember]
