@@ -88,10 +88,10 @@ namespace AGBLang.StdUtil {
 		}
 	}
 	public class FormatReader : GenericReader {
-		public IncrementalGAnalyzer cojunctionIGAnlys;
-		public IncrGAnlysDictionary gAnlysDict;
-		public FormToGAnlys fReader;
-		public Dictionary<string, GrammarBlock> metaInfos;
+		public static  IncrementalGAnalyzer cojunctionIGAnlys;
+		public static IncrGAnlysDictionary gAnlysDict;
+		public static FormToGAnlys fReader;
+		public static Dictionary<string, GrammarBlock> metaInfos;
 		public List<string> forms = new List<string>();
 		public List<string> names = new List<string>();
 		public List<string> categoriess = new List<string>();
@@ -237,7 +237,8 @@ namespace AGBLang.StdUtil {
 		void GenericReader.Conclude() { }
 		GenericReader GenericReader.GetSubReader(string name) {
 			if (name.Equals("GeneralFormat", StringComparison.CurrentCultureIgnoreCase) || name.Equals("GeneralFormats", StringComparison.CurrentCultureIgnoreCase)) {
-				return new FormatReader { };
+				return new FormatReader {
+				};
 			}
 			else if (name.Equals("Template", StringComparison.CurrentCultureIgnoreCase) || name.Equals("Templates", StringComparison.CurrentCultureIgnoreCase)) {
 				return new TemplateReader { templateDict = templateDict };

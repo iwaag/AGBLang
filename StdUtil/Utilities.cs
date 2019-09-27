@@ -150,6 +150,8 @@ namespace AGBLang.StdUtil {
 			return resultBuilder.ToString();
 		}
 		public static void VisitGrammarBlock(GrammarBlock gBlock, GrammarBlockVisitor visitor) {
+			if (gBlock == null)
+				return;
 			if (gBlock.metaInfo != null) {
 				visitor.IfHasMetaInfo(gBlock.metaInfo);
 			}

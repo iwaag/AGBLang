@@ -45,25 +45,25 @@ namespace AGBLang.StdUtil {
 			#region dictionary creation
 			var gDict = new IncrGAnlysDictionary();
 			var formatReader = new FormatReader();
-			formatReader.fReader = new FormToGAnlys { analyzer = mAnlysForDict, dict = gDict };
-			formatReader.gAnlysDict = gDict;
-			formatReader.metaInfos = new Dictionary<string, GrammarBlock>();
-			formatReader.metaInfos[StdMetaInfos.sentenceCluster.word] = StdMetaInfos.sentenceCluster;
-			formatReader.metaInfos[StdMetaInfos.nominalBlock.word] = StdMetaInfos.nominalBlock;
-			formatReader.metaInfos[StdMetaInfos.verbalBlock.word] = StdMetaInfos.verbalBlock;
-			formatReader.metaInfos[StdMetaInfos.quoteBlock.word] = StdMetaInfos.quoteBlock;
-			formatReader.metaInfos[StdMetaInfos.sv.word] = StdMetaInfos.sv;
-			formatReader.metaInfos[StdMetaInfos.conditionSV.word] = StdMetaInfos.conditionSV;
-			formatReader.metaInfos[StdMetaInfos.negated.word] = StdMetaInfos.negated;
-			formatReader.metaInfos[StdMetaInfos.title.word] = StdMetaInfos.title;
-			formatReader.metaInfos[StdMetaInfos.clusterExtractable.word] = StdMetaInfos.clusterExtractable;
-			formatReader.metaInfos[StdMetaInfos.metaCluster.word] = StdMetaInfos.metaCluster;
-			formatReader.metaInfos[StdMetaInfos.anonymousCommand.word] = StdMetaInfos.anonymousCommand;
-			formatReader.metaInfos[StdMetaInfos.modifierCluster.word] = StdMetaInfos.modifierCluster;
-			formatReader.metaInfos[StdMetaInfos.quoteSV.word] = StdMetaInfos.quoteSV;
-			formatReader.metaInfos[StdMetaInfos.pronoun.word] = StdMetaInfos.pronoun;
-			formatReader.metaInfos[StdMetaInfos.plural.word] = StdMetaInfos.plural;
-			formatReader.metaInfos[StdMetaInfos.unreadable.word] = StdMetaInfos.unreadable;
+			FormatReader.fReader = new FormToGAnlys { analyzer = mAnlysForDict, dict = gDict };
+			FormatReader.gAnlysDict = gDict;
+			FormatReader.metaInfos = new Dictionary<string, GrammarBlock>();
+			FormatReader.metaInfos[StdMetaInfos.sentenceCluster.word] = StdMetaInfos.sentenceCluster;
+			FormatReader.metaInfos[StdMetaInfos.nominalBlock.word] = StdMetaInfos.nominalBlock;
+			FormatReader.metaInfos[StdMetaInfos.verbalBlock.word] = StdMetaInfos.verbalBlock;
+			FormatReader.metaInfos[StdMetaInfos.quoteBlock.word] = StdMetaInfos.quoteBlock;
+			FormatReader.metaInfos[StdMetaInfos.sv.word] = StdMetaInfos.sv;
+			FormatReader.metaInfos[StdMetaInfos.conditionSV.word] = StdMetaInfos.conditionSV;
+			FormatReader.metaInfos[StdMetaInfos.negated.word] = StdMetaInfos.negated;
+			FormatReader.metaInfos[StdMetaInfos.title.word] = StdMetaInfos.title;
+			FormatReader.metaInfos[StdMetaInfos.clusterExtractable.word] = StdMetaInfos.clusterExtractable;
+			FormatReader.metaInfos[StdMetaInfos.metaCluster.word] = StdMetaInfos.metaCluster;
+			FormatReader.metaInfos[StdMetaInfos.anonymousCommand.word] = StdMetaInfos.anonymousCommand;
+			FormatReader.metaInfos[StdMetaInfos.modifierCluster.word] = StdMetaInfos.modifierCluster;
+			FormatReader.metaInfos[StdMetaInfos.quoteSV.word] = StdMetaInfos.quoteSV;
+			FormatReader.metaInfos[StdMetaInfos.pronoun.word] = StdMetaInfos.pronoun;
+			FormatReader.metaInfos[StdMetaInfos.plural.word] = StdMetaInfos.plural;
+			FormatReader.metaInfos[StdMetaInfos.unreadable.word] = StdMetaInfos.unreadable;
 			{
 				var conjCand = new IGAnlys_Candidates { };
 				var and = new IGAnlys_Word { };
@@ -75,7 +75,7 @@ namespace AGBLang.StdUtil {
 				conjCand.analyzers.Add(or);
 				conjCand.analyzers.Add(quote);
 				var conjGAnlys = new IGAnlys_RepeatableBlock { baseAnalyzer = conjCand };
-				formatReader.cojunctionIGAnlys = conjGAnlys;
+				FormatReader.cojunctionIGAnlys = conjGAnlys;
 			}
 			#endregion
 			var dictionaryJsonText = File.ReadAllText(dictionaryFilePath);
