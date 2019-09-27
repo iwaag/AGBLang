@@ -97,9 +97,6 @@ namespace AGBLang.StdUtil {
 	#region grammar block
 	[System.Serializable]
 	[DataContract]
-	public class GBlockUtilities {
- 
-	}
 	public class DeserializedGBlock : GrammarBlock, GrammarUnit, ClusterGrammarBlock {
 		[DataMember]
 		public SDeserializedGBlock mod;
