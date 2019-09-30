@@ -58,20 +58,19 @@ namespace AGBLang.StdUtil {
 		}
 	}
 	public class GBlockConverter_PronounSpecifier : GBlockConverter {
-		public Dictionary<string, string> dict = new Dictionary<string, string>();
+		public Dictionary<string, MutableGrammarBlock> dict = new Dictionary<string, MutableGrammarBlock>();
 		GBlockConvertResult GBlockConverter.ConvertGBlock(GrammarBlock sourceGBlock, GBlockConvertListener listener) {
 			if (!GrammarBlockUtils.HasMetaInfo(sourceGBlock, StdMetaInfos.pronoun.word))
 				return default(GBlockConvertResult);
 			if (dict.TryGetValue(sourceGBlock.unit.word, out var value)) {
-				MutableGrammarUnit newGUnit = new StdMutableGUnit { word = value };
 				var clusterGBC = new ClusterGBlockConverter {
 					converters = new List<GBlockConverter> {
 						new GBlockConverter_GUnitFilter {filteringString = StdMetaInfos.pronoun.word},
 						listener.metaConverter
 					}
 				};
-				GBlockConvertUtility.ApplyModAndMeta(newGUnit, sourceGBlock, listener, clusterGBC);
-				return default(GBlockConvertResult);
+				GBlockConvertUtility.ApplyModAndMeta(value, sourceGBlock, listener, clusterGBC);
+				return new GBlockConvertResult { didConvert = true, result = value };
 			}
 			return default(GBlockConvertResult);
 		}

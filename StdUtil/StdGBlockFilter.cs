@@ -51,7 +51,7 @@ namespace AGBLang.StdUtil {
 			replacer.number.Add("one", new MinimumGBUnit { word = "1"});
 			replacer.number.Add("two", new MinimumGBUnit { word = "2" });
 			replacer.number.Add("three", new MinimumGBUnit { word = "3" });
-			pronouc.dict = new Dictionary<string, string>();
+			pronouc.dict = new Dictionary<string, MutableGrammarBlock>();
 			convList.Add(replacer);
 			convList.Add(pronouc);
 			convList.Add(activizer);
@@ -59,18 +59,38 @@ namespace AGBLang.StdUtil {
 			convList.Add(defaultConv);
 			activizer.defaultSubject = new StdMutableGUnit { word = "player"};
 		}
+		public void SetPronounSolution(GrammarBlock sourceGBlock, GBlockConvertListener listener) {
+			GrammarBlockUtils.DeepSeek(sourceGBlock, StdMetaInfos.nominalBlock.word, (gBlock) => {
+				//acutual noun found
+				if (!GrammarBlockUtils.HasMetaInfo(gBlock, StdMetaInfos.pronoun.word)) {
+					pronouc.dict["they"] = listener.subBlockConverter.ConvertGBlock(gBlock, listener).result;
+				}
+			}, true);
+		}
 		GBlockConvertResult GBlockConverter.ConvertGBlock(GrammarBlock sourceGBlock, GBlockConvertListener listener) {
 			return (mainConverter as GBlockConverter).ConvertGBlock(sourceGBlock, listener);
 		}
 	}
 	public class StdGBlockFilter : ImmediatePicker<GrammarBlock, GrammarBlock> {
-		public GBlockConverter converter;
+		public System.Action<GrammarBlock> onBeginSentenceLine;
 		GrammarBlock ImmediatePicker<GrammarBlock, GrammarBlock>.PickBestElement(GrammarBlock key) {
 			var listener = new StdGBlockConvertListener();
 			var rootConv = new RootGBlockConverter();
 			listener._metaConverter = GBlockConverter_Default.instance;
 			listener._modConverter = rootConv;
 			listener._subBlockConverter = rootConv;
+
+			if (GrammarBlockUtils.HasMetaInfo(key, StdMetaInfos.sentenceCluster.word) && key.cluster != null) {
+				var newCluster = new StdClusterGrammarBlock();
+				foreach (var sentence in key.cluster.blocks) {
+					rootConv.SetPronounSolution(sentence, listener);
+					var converterSetnence = (listener as GBlockConvertListener).subBlockConverter.ConvertGBlock(sentence, listener);
+					(newCluster as MutableClusterGrammarBlock).AddBlock(converterSetnence.result);
+				}
+				GBlockConvertUtility.ApplyModAndMeta(newCluster as MutableGrammarBlock, key, listener);
+				return newCluster;
+			}
+			rootConv.SetPronounSolution(key, listener);
 			return (rootConv as GBlockConverter).ConvertGBlock(key, listener).result;
 		}
 	}

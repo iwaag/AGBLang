@@ -21,7 +21,6 @@ namespace AGBLang.StdUtil {
 			if(result.content != null) {
 				listener.Collect(result.content);
 			}
-			
 		}
 	}
 	public class EasyIncrGAnalysListener : IncrGAnalysisListener {

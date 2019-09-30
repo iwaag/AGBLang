@@ -340,11 +340,24 @@ namespace AGBLang.StdUtil {
 				}
 			}
 		}
-		public static GrammarBlock GetPrepositoinContent(GrammarBlock block, string preposition) {
+		public static GrammarBlock GetPrepositoinContent(GrammarBlock block, string preposition, System.Action<GrammarBlock> func) {
 			var prepositoinBlock = ShallowSeekModifier(block, preposition);
 			return prepositoinBlock.modifier;
 		}
-
+		public static void DeepSeek(GrammarBlock block, string meta, System.Action<GrammarBlock> func, bool includeModifier = false) {
+			if (HasMetaInfo(block, meta)) {
+				func(block);
+			}
+			if (includeModifier && block.modifier != null) {
+				DeepSeek(block.modifier, meta, func, includeModifier);
+			}
+			if (block.cluster != null){
+				foreach (var subBlock in block.cluster.blocks) {
+					DeepSeek(subBlock, meta, func, includeModifier);
+				}
+			}
+			
+		}
 
 
 		public static void ForEachUnits(GrammarBlock gBlock, System.Action<GrammarUnit> func) {
