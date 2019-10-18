@@ -2,95 +2,66 @@
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
+using AGAsset;
 using AGDev;
+using AGDev.StdUtil;
+
 namespace AGBLang.StdUtil {
 	public class ClusterBehaviorSetter : BehaviorSetter {
 		public IEnumerable<BehaviorSetter> bSetters;
-		void BehaviorSetter.ReadyBehavior(BehaviorExpression gBLock, BehaviorRequestListener reqListener) {
-			var outerListener = new ClusterizingBReqListener { clientListener = reqListener };
-			foreach (var bSetter in bSetters) {
-				bSetter.ReadyBehavior(gBLock, outerListener);
-			}
-			if (outerListener.triggers.Count > 0) {
-				reqListener.OnSucceed(outerListener.clusterTrigger);
+		BehaviorTrigger BehaviorSetter.ReadyBehavior(BehaviorExpression gBLock, BehaviorReadySupport support) {
+			return BehaviorUtiles.BuildBTrigger(bSetters, gBLock, support);
+		}
+	}
+	public class ClusterBehaviorTrigger : BehaviorTrigger {
+		public IList<BehaviorTrigger> triggers;
+		void BehaviorTrigger.BeginBehavior(BehaviorListener behaviorListener) {
+			var outerListener = new BehaviorListenerForCluster { clientListener = behaviorListener, goalCount = triggers.Count };
+			foreach (var trigger in triggers) {
+				trigger.BeginBehavior(outerListener);
 			}
 		}
-		public class ClusterizingBReqListener : BehaviorRequestListener {
-			public BehaviorRequestListener clientListener;
-			public List<BehaviorTrigger> triggers = new List<BehaviorTrigger>();
-			public ClusterBehaviorTrigger clusterTrigger;
-			public ClusterizingBReqListener() {
-				clusterTrigger = new ClusterBehaviorTrigger { triggers = triggers };
-			}
-			void BehaviorRequestListener.OnSucceed(BehaviorTrigger controller) {
-				triggers.Add(controller);
-			}
-			public class ClusterBehaviorTrigger : BehaviorTrigger {
-				public IList<BehaviorTrigger> triggers;
-				void BehaviorTrigger.BeginBehavior(BehaviorListener behaviorListener) {
-					var outerListener = new BehaviorListenerForCluster { clientListener = behaviorListener, goalCount = triggers.Count };
-					foreach (var trigger in triggers) {
-						trigger.BeginBehavior(outerListener);
-					}
-				}
-				class BehaviorListenerForCluster : BehaviorListener {
-					public int goalCount;
-					public int currentCount = 0;
-					public BehaviorListener clientListener;
-					void BehaviorListener.OnFinish() {
-						currentCount++;
-						if (currentCount == goalCount) {
-							clientListener.OnFinish();
-						}
-					}
+		class BehaviorListenerForCluster : BehaviorListener {
+			public int goalCount;
+			public int currentCount = 0;
+			public BehaviorListener clientListener;
+			void BehaviorListener.OnFinish() {
+				currentCount++;
+				if (currentCount == goalCount) {
+					clientListener.OnFinish();
 				}
 			}
 		}
 	}
 	public class ClusterBehaviorChecker : BehaviorChecker {
 		public IEnumerable<BehaviorChecker> bCheckers;
-		void BehaviorChecker.ReadyCheckBehavior(BehaviorExpression gBLock, BehaviorCheckRequestListener reqListener) {
-			var outerListener = new ClusterizingBReqListener { clientListener = reqListener };
-			foreach (var bChecker in bCheckers) {
-				bChecker.ReadyCheckBehavior(gBLock, outerListener);
-			}
-			if (outerListener.triggers.Count > 0)
-				reqListener.OnSucceed(outerListener.clusterTrigger);
+		BehaviorCheckTrigger BehaviorChecker.ReadyCheckBehavior(BehaviorExpression gBLock, BehaviorReadySupport support) {
+			return BehaviorUtiles.BuildBCheckTrigger(bCheckers, gBLock, support);
 		}
-		public class ClusterizingBReqListener : BehaviorCheckRequestListener {
-			public BehaviorCheckRequestListener clientListener;
-			public List<BehaviorCheckTrigger> triggers = new List<BehaviorCheckTrigger>();
-			public ClusterBehaviorCheckTrigger clusterTrigger;
-			public ClusterizingBReqListener() {
-				clusterTrigger = new ClusterBehaviorCheckTrigger { triggers = triggers };
+		
+	}
+	public class ClusterBehaviorCheckTrigger : BehaviorCheckTrigger {
+		public IEnumerable<BehaviorCheckTrigger> triggers;
+		void BehaviorCheckTrigger.BeginBehavior(BehaviorCheckListener BehaviorCheckListener) {
+			var outerListener = new BehaviorCheckListenerForCluster { clientListener = BehaviorCheckListener };
+			foreach (var trigger in triggers) {
+				trigger.BeginBehavior(outerListener);
 			}
-			void BehaviorCheckRequestListener.OnSucceed(BehaviorCheckTrigger controller) {
-				triggers.Add(controller);
-			}
-			public class ClusterBehaviorCheckTrigger : BehaviorCheckTrigger {
-				public IEnumerable<BehaviorCheckTrigger> triggers;
-				void BehaviorCheckTrigger.BeginBehavior(BehaviorCheckListener BehaviorCheckListener) {
-					var outerListener = new BehaviorCheckListenerForCluster { clientListener = BehaviorCheckListener };
-					foreach (var trigger in triggers) {
-						trigger.BeginBehavior(outerListener);
-					}
+		}
+		class BehaviorCheckListenerForCluster : BehaviorCheckListener {
+			bool didResult = false;
+			public BehaviorCheckListener clientListener;
+			void BehaviorCheckListener.OnResultInPositive() {
+				if (!didResult) {
+					didResult = true;
+					clientListener.OnResultInPositive();
 				}
-				class BehaviorCheckListenerForCluster : BehaviorCheckListener {
-					bool didResult = false;
-					public BehaviorCheckListener clientListener;
-					void BehaviorCheckListener.OnResultInPositive() {
-						if (!didResult) {
-							didResult = true;
-							clientListener.OnResultInPositive();
-						}
-					}
+			}
 
-					void BehaviorCheckListener.OnResultInNegative() {
-						if (!didResult) {
-							didResult = true;
-							clientListener.OnResultInNegative();
-						}
-					}
+			void BehaviorCheckListener.OnResultInNegative() {
+				if (!didResult) {
+					didResult = true;
+					clientListener.OnResultInNegative();
 				}
 			}
 		}
@@ -385,6 +356,36 @@ namespace AGBLang.StdUtil {
 			}
 		}
 	}
+	public static class BehaviorUtiles {
+		public static BehaviorTrigger BuildBTrigger(IEnumerable<BehaviorSetter> setters, BehaviorExpression expression, BehaviorReadySupport support) {
+			List<BehaviorTrigger> triggers = new List<BehaviorTrigger>();
+			foreach (var bChecker in setters) {
+				var trigger = bChecker.ReadyBehavior(expression, support);
+				if (trigger != null) {
+					triggers.Add(trigger);
+				}
+			}
+			if (triggers.Count == 1)
+				return triggers[0];
+			if (triggers.Count > 0)
+				return new ClusterBehaviorTrigger { triggers = triggers };
+			return null;
+		}
+		public static BehaviorCheckTrigger BuildBCheckTrigger(IEnumerable<BehaviorChecker> bCheckers, BehaviorExpression expression, BehaviorReadySupport support) {
+			List<BehaviorCheckTrigger> triggers = new List<BehaviorCheckTrigger>();
+			foreach (var bChecker in bCheckers) {
+				var trigger = bChecker.ReadyCheckBehavior(expression, support);
+				if (trigger != null) {
+					triggers.Add(trigger);
+				}
+			}
+			if (triggers.Count == 1)
+				return triggers[0];
+			if (triggers.Count > 0)
+				return new ClusterBehaviorCheckTrigger { triggers = triggers };
+			return null;
+		}
+	}
 	public interface GrammarBlockVisitor {
 		void IfHasMetaInfo(GrammarBlock meta);
 		void IfGrammarUnit(GrammarUnit unit);
@@ -637,13 +638,14 @@ namespace AGBLang.StdUtil {
 	}
 	class SVSentenceVisitor : GrammarBlockVisitor {
 		public BehaviorSetCheck behaverSetCheck;
-		public Collector<BehaviorTrigger> triggerColl;
+		public Taker<BehaviorTrigger> triggerColl;
+		public BehaviorReadySupport support;
 		void GrammarBlockVisitor.IfHasMetaInfo(GrammarBlock meta) { }
 
 		void GrammarBlockVisitor.IfGrammarUnit(GrammarUnit unit) { }
 
 		void GrammarBlockVisitor.IfClusterGrammarBlock(ClusterGrammarBlock cluster) {
-			var vReader = new VerbalUnitReader { behaverSetCheck = behaverSetCheck, subjectBlock = cluster.blocks[0], bhvrTrgColl = triggerColl };
+			var vReader = new VerbalUnitReader { behaverSetCheck = behaverSetCheck, subjectBlock = cluster.blocks[0], bhvrTrgColl = triggerColl, support = support };
 			GrammarBlockUtils.VisitGrammarBlock(cluster.blocks[1], vReader);
 		}
 
@@ -652,12 +654,12 @@ namespace AGBLang.StdUtil {
 		public class VerbalUnitReader : GrammarBlockVisitor {
 			public BehaviorSetCheck behaverSetCheck;
 			public GrammarBlock subjectBlock;
-			public Collector<BehaviorTrigger> bhvrTrgColl;
+			public Taker<BehaviorTrigger> bhvrTrgColl;
+			public BehaviorReadySupport support;
 			void GrammarBlockVisitor.IfHasMetaInfo(GrammarBlock meta) { }
 			void GrammarBlockVisitor.IfGrammarUnit(GrammarUnit unit) {
 				var behaviorExpression = new StdBehaviorExpression(subjectBlock, unit);
-				var easyListener = new PrvtRequestListener { parent = this };
-				behaverSetCheck.ReadyBehavior(behaviorExpression, easyListener);
+				behaverSetCheck.ReadyBehavior(behaviorExpression, support);
 			}
 
 			void GrammarBlockVisitor.IfClusterGrammarBlock(ClusterGrammarBlock cluster) {
@@ -667,42 +669,54 @@ namespace AGBLang.StdUtil {
 			}
 
 			void GrammarBlockVisitor.IfHasModifier(GrammarBlock mod) { }
-			public class PrvtRequestListener : BehaviorRequestListener {
-				public VerbalUnitReader parent;
-				void BehaviorRequestListener.OnSucceed(BehaviorTrigger trigger) {
-					parent.bhvrTrgColl.Collect(trigger);
-				}
-			}
 		}
 	}
-	class OR_BehaviorCheckTrigger : BehaviorCheckTrigger, BehaviorCheckRequestListener {
+	class OR_BehaviorCheckTrigger : BehaviorCheckTrigger, Taker<BehaviorCheckTrigger> {
 		public List<BehaviorCheckTrigger> triggers = new List<BehaviorCheckTrigger>();
 		void BehaviorCheckTrigger.BeginBehavior(BehaviorCheckListener behaviorListener) {
+			var listener = new JustOnceBCheckListener{ listener = behaviorListener };
 			foreach (var trigger in triggers) {
-				trigger.BeginBehavior(behaviorListener);
+				trigger.BeginBehavior(listener);
 			}
 		}
-		void BehaviorCheckRequestListener.OnSucceed(BehaviorCheckTrigger trigger) {
-			triggers.Add(trigger);
+
+		void Taker<BehaviorCheckTrigger>.None() {}
+		void Taker<BehaviorCheckTrigger>.Take(BehaviorCheckTrigger item) {
+			triggers.Add(item);
+		}
+		public class JustOnceBCheckListener : BehaviorCheckListener {
+			public BehaviorCheckListener listener;
+			public bool didDecidedResult = false;
+			void BehaviorCheckListener.OnResultInNegative() {
+				//stub
+			}
+
+			void BehaviorCheckListener.OnResultInPositive() {
+				if (!didDecidedResult) {
+					didDecidedResult = true;
+					listener.OnResultInPositive();
+				}
+			}
 		}
 	}
 	public class ConditionalSVVisitor : GrammarBlockVisitor {
 		public BehaviorSetCheck behaverSetCheck;
 		public CompositeBehaviorTrigger givenTrigger;
 		public CompositeBehaviorTrigger nextCompositTrigger;
+		public BehaviorReadySupport support;
 		void GrammarBlockVisitor.IfClusterGrammarBlock(ClusterGrammarBlock cluster) {
 			var orCheckTrigger = new OR_BehaviorCheckTrigger { };
-			var vReader = new ConditionalVerbalUnitReader { behaverSetCheck = behaverSetCheck, subjectBlock = cluster.blocks[0], chkListener = orCheckTrigger, bhvrTrgColl = givenTrigger };
+			var vReader = new ConditionalVerbalUnitReader { behaverSetCheck = behaverSetCheck, subjectBlock = cluster.blocks[0], support = support };
 			GrammarBlockUtils.VisitGrammarBlock(cluster.blocks[1], vReader);
 			if (orCheckTrigger.triggers.Count > 1) {
 				var followingBehavior = new StdCompositeBehaviorTrigger();
 				nextCompositTrigger = followingBehavior;
-				givenTrigger.Collect(new BTriggerForBCheck { checkTrigger = orCheckTrigger, followingBehavior = followingBehavior });
+				givenTrigger.Take(new BTriggerForBCheck { checkTrigger = orCheckTrigger, followingBehavior = followingBehavior });
 			}
 			else if (orCheckTrigger.triggers.Count == 1) {
 				var followingBehavior = new StdCompositeBehaviorTrigger();
 				nextCompositTrigger = followingBehavior;
-				givenTrigger.Collect(new BTriggerForBCheck { checkTrigger = orCheckTrigger, followingBehavior = followingBehavior });
+				givenTrigger.Take(new BTriggerForBCheck { checkTrigger = orCheckTrigger, followingBehavior = followingBehavior });
 
 			}
 		}
@@ -712,17 +726,17 @@ namespace AGBLang.StdUtil {
 		public class ConditionalVerbalUnitReader : GrammarBlockVisitor {
 			public BehaviorSetCheck behaverSetCheck;
 			public GrammarBlock subjectBlock;
-			public Collector<BehaviorTrigger> bhvrTrgColl;
-			public BehaviorCheckRequestListener chkListener;
+			public BehaviorReadySupport support;
+			public Taker<BehaviorCheckTrigger> bcTriggers;
 			void GrammarBlockVisitor.IfHasMetaInfo(GrammarBlock meta) { }
 			void GrammarBlockVisitor.IfGrammarUnit(GrammarUnit verbalUnit) {
 				var bExpression = new StdBehaviorExpression(subjectBlock, verbalUnit);
+				var trigger = behaverSetCheck.ReadyCheckBehavior(bExpression, support);
 				if (GrammarBlockUtils.ShallowSeek(verbalUnit.metaInfo, StdMetaInfos.negated.word) != null) {
-					var outerListner = new NegateBCheckReqListener { listener = chkListener };
-					behaverSetCheck.ReadyCheckBehavior(bExpression, outerListner);
+					bcTriggers.Take(new NegatingBCheckTrigger { clientTrigger = trigger });
 				}
 				else
-					behaverSetCheck.ReadyCheckBehavior(bExpression, chkListener);
+					bcTriggers.Take(trigger);
 			}
 
 			void GrammarBlockVisitor.IfClusterGrammarBlock(ClusterGrammarBlock cluster) {
@@ -732,12 +746,6 @@ namespace AGBLang.StdUtil {
 			}
 
 			void GrammarBlockVisitor.IfHasModifier(GrammarBlock mod) { }
-			public class NegateBCheckReqListener : BehaviorCheckRequestListener {
-				public BehaviorCheckRequestListener listener;
-				void BehaviorCheckRequestListener.OnSucceed(BehaviorCheckTrigger trigger) {
-					listener.OnSucceed(new NegatingBCheckTrigger { clientTrigger = trigger });
-				}
-			}
 			public class NegatingBCheckTrigger : BehaviorCheckTrigger {
 				public BehaviorCheckTrigger clientTrigger;
 				void BehaviorCheckTrigger.BeginBehavior(BehaviorCheckListener checkListener) {
@@ -754,32 +762,33 @@ namespace AGBLang.StdUtil {
 	class SentenceBlockRecursiveProcessor {
 		public Dictionary<string, CompositeBehaviorTrigger> namedCBTriggers;
 		public BehaviorSetCheck behaverSetCheck;
-		public CompositeBehaviorTrigger subSentenceBehaviorCollector;
-		public CompositeBehaviorTrigger followingSentenceBehaviorManagedCollector;
+		public CompositeBehaviorTrigger subSentenceBehaviorTaker;
+		public CompositeBehaviorTrigger followingSentenceBehaviorManagedTaker;
+		public BehaviorReadySupport support;
 		public bool doResetPreviousTrigger = false;
 		public void GrammarBlockCommon(GrammarBlock block) {
 			//Title
 			if (GrammarBlockUtils.ShallowSeek(block.metaInfo, StdMetaInfos.title.word) != null) {
 				if (block.unit != null) {
-					followingSentenceBehaviorManagedCollector = subSentenceBehaviorCollector = new StdCompositeBehaviorTrigger();
-					namedCBTriggers.Add(block.unit.word, followingSentenceBehaviorManagedCollector);
+					followingSentenceBehaviorManagedTaker = subSentenceBehaviorTaker = new StdCompositeBehaviorTrigger();
+					namedCBTriggers.Add(block.unit.word, followingSentenceBehaviorManagedTaker);
 				}
 				return;
 			}
 			//wait
 			{
 				if (GrammarBlockUtils.ShallowSeekModifier(block, "then") != null) {
-					subSentenceBehaviorCollector = subSentenceBehaviorCollector.AddWaitTrigger();
+					subSentenceBehaviorTaker = subSentenceBehaviorTaker.AddWaitTrigger();
 				}
 			}
 			//read conditional SV
 			if (block.modifier != null) {
-				var conditionSVVisitor = new ConditionalSVVisitor { behaverSetCheck = behaverSetCheck, givenTrigger = subSentenceBehaviorCollector };
+				var conditionSVVisitor = new ConditionalSVVisitor { behaverSetCheck = behaverSetCheck, givenTrigger = subSentenceBehaviorTaker, support = support };
 				var rootVisitor = new MetaInfoDependentGrammarBlockVisitor();
 				rootVisitor.metaToVis.Add(StdMetaInfos.conditionSV.word, conditionSVVisitor);
 				GrammarBlockUtils.VisitGrammarBlock(block.modifier, rootVisitor);
 				if (conditionSVVisitor.nextCompositTrigger != null) {
-					subSentenceBehaviorCollector = conditionSVVisitor.nextCompositTrigger;
+					subSentenceBehaviorTaker = conditionSVVisitor.nextCompositTrigger;
 				}
 			}
 			//read main SV
@@ -787,16 +796,16 @@ namespace AGBLang.StdUtil {
 				if (block.cluster != null) {
 					if (GrammarBlockUtils.ShallowSeek(block.metaInfo, StdMetaInfos.sentenceCluster.word) != null) {
 						foreach (var subBlock in block.cluster.blocks) {
-							var subProcessor = new SentenceBlockRecursiveProcessor { behaverSetCheck = behaverSetCheck, subSentenceBehaviorCollector = subSentenceBehaviorCollector, namedCBTriggers = namedCBTriggers };
+							var subProcessor = new SentenceBlockRecursiveProcessor { behaverSetCheck = behaverSetCheck, subSentenceBehaviorTaker = subSentenceBehaviorTaker, namedCBTriggers = namedCBTriggers, support = support };
 							subProcessor.GrammarBlockCommon(subBlock);
-							if (subProcessor.followingSentenceBehaviorManagedCollector != null) {
-								subSentenceBehaviorCollector = subProcessor.followingSentenceBehaviorManagedCollector;
+							if (subProcessor.followingSentenceBehaviorManagedTaker != null) {
+								subSentenceBehaviorTaker = subProcessor.followingSentenceBehaviorManagedTaker;
 							}
 						}
 					}
 				}
 				if (GrammarBlockUtils.ShallowSeek(block.metaInfo, StdMetaInfos.sv.word) != null) {
-					var svVisitor = new SVSentenceVisitor { behaverSetCheck = behaverSetCheck, triggerColl = subSentenceBehaviorCollector };
+					var svVisitor = new SVSentenceVisitor { behaverSetCheck = behaverSetCheck, triggerColl = subSentenceBehaviorTaker, support = support };
 					GrammarBlockUtils.VisitGrammarBlock(block, svVisitor);
 				}
 			}
@@ -804,50 +813,75 @@ namespace AGBLang.StdUtil {
 	}
 	#endregion
 	#region behavior
-	public class StdBehaverPicker : ImmediatePicker<Behaver, GrammarBlock> {
-		public ImmediatePicker<Behaver, GrammarBlock> clientBehaverPicker;
+	public class StdBehaviorReadySupport : BehaviorReadySupport {
+		public AssetMediator assetMediator;
+		AssetMediator BehaviorReadySupport.assetMediator => assetMediator;
+	}
+	public class StubAssetMediator : AssetMediator {
+		AssetType AssetMediator.GetImplementedAsset<AssetType>(GrammarBlock gBlock) {
+			return default;
+		}
+
+		IEnumerable<AssetType> AssetMediator.GetImplementedAssets<AssetType>() {
+			return default;
+		}
+
+		AssetType AssetMediator.GetImplementedModule<AssetType>() {
+			return default;
+		}
+
+		void AssetMediator.SeekAsset<AssetType>(GrammarBlock gBlock, Taker<AssetType> taker) {
+			taker.None();
+		}
+
+		void AssetMediator.SeekModule<AssetType>(Taker<AssetType> taker) {
+			taker.None();
+		}
+	}
+	public class StdBehaverGiver : ImmediateGiver<Behaver, GrammarBlock> {
+		public ImmediateGiver<Behaver, GrammarBlock> clientBehaverGiver;
 		public List<Behaver> behavers = new List<Behaver>();
-		Behaver ImmediatePicker<Behaver, GrammarBlock>.PickBestElement(GrammarBlock key) {
+		Behaver ImmediateGiver<Behaver, GrammarBlock>.PickBestElement(GrammarBlock key) {
 			var foundBehaver = behavers.Find((behaver) => behaver.MatchAttribue(key) == AttributeMatchResult.POSITIVE);
-			return foundBehaver != null ? foundBehaver : clientBehaverPicker.PickBestElement(key);
+			return foundBehaver != null ? foundBehaver : clientBehaverGiver.PickBestElement(key);
+		}
+	}
+	public class StubBehaviorTrigger : BehaviorTrigger {
+		void BehaviorTrigger.BeginBehavior(BehaviorListener behaviorListener) {
+			behaviorListener.OnFinish();
 		}
 	}
 	public class StdBSetCheck : BehaviorSetCheck {
-		public ImmediatePicker<Behaver, GrammarBlock> behaverPicker;
-		public ClusterBehaviorSetCheck builtinSetCheck = new ClusterBehaviorSetCheck();
-		void BehaviorSetter.ReadyBehavior(BehaviorExpression bExpr, BehaviorRequestListener reqListener) {
-			(builtinSetCheck as BehaviorSetCheck).ReadyBehavior(bExpr, reqListener);
-			var behaver = behaverPicker.PickBestElement(bExpr.subject);
-			if (behaver != null) {
-				behaver.ReadyBehavior(bExpr, reqListener);
-			}
+		public ImmediateGiver<Behaver, GrammarBlock> behaverGiver;
+		public List<BehaviorChecker> checkers= new List<BehaviorChecker>();
+		public List<BehaviorSetter> setters = new List<BehaviorSetter>();
+		BehaviorTrigger BehaviorSetter.ReadyBehavior(BehaviorExpression bExpr, BehaviorReadySupport support) {
+			return BehaviorUtiles.BuildBTrigger(setters, bExpr, support);
 		}
 
-		void BehaviorChecker.ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorCheckRequestListener chkReqListener) {
-			(builtinSetCheck as BehaviorSetCheck).ReadyCheckBehavior(bExpr, chkReqListener);
-			var behaver = behaverPicker.PickBestElement(bExpr.subject);
-			if (behaver != null) {
-				behaver.ReadyCheckBehavior(bExpr, chkReqListener);
-			}
+		BehaviorCheckTrigger BehaviorChecker.ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorReadySupport support) {
+			return BehaviorUtiles.BuildBCheckTrigger(checkers, bExpr, support);
 		}
 		public class ClusterBehaviorSetCheck : BehaviorSetCheck {
-			public List<BehaviorSetCheck> cluster = new List<BehaviorSetCheck>();
-			void BehaviorSetter.ReadyBehavior(BehaviorExpression bExpr, BehaviorRequestListener reqListener) {
-				foreach (var item in cluster) {
-					item.ReadyBehavior(bExpr, reqListener);
-				}
+			List<BehaviorSetter> setters = new List<BehaviorSetter>();
+			List<BehaviorChecker> checkers = new List<BehaviorChecker>();
+			public void Add(BehaviorSetCheck sc) {
+				setters.Add(sc);
+				checkers.Add(sc);
+			}
+			BehaviorTrigger BehaviorSetter.ReadyBehavior(BehaviorExpression bExpr, BehaviorReadySupport support) {
+				return BehaviorUtiles.BuildBTrigger(setters, bExpr, support);
 			}
 
-			void BehaviorChecker.ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorCheckRequestListener chkReqListener) {
-				foreach (var item in cluster) {
-					item.ReadyCheckBehavior(bExpr, chkReqListener);
-				}
+			BehaviorCheckTrigger BehaviorChecker.ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorReadySupport support) {
+				return BehaviorUtiles.BuildBCheckTrigger(checkers, bExpr, support);
 			}
 		}
 	}
 	public interface CompositeBehaviorTrigger :
 		BehaviorTrigger,
-		Collector<BehaviorTrigger> {
+		Taker<BehaviorTrigger>
+	{
 		CompositeBehaviorTrigger AddWaitTrigger();
 	}
 	public class TriggerOnPositiveBCheckListener : BehaviorCheckListener {
@@ -896,10 +930,10 @@ namespace AGBLang.StdUtil {
 			}
 		};
 		public BehaviorTrigger followingBTrigger;
-		public void BeginBehavior(Collector<BehaviorListener> previousProcess, BehaviorListener bListener) {
+		public void BeginBehavior(System.Action<BehaviorListener> previousProcess, BehaviorListener bListener) {
 			var lis = new PrvtLis { followingBTrigger = followingBTrigger, bListener = bListener };
 			//bListener.OnBegin(*prvtListeners.back());
-			previousProcess.Collect(lis);
+			previousProcess.Invoke(lis);
 		}
 	}
 	public class VariousTrigger {
@@ -936,10 +970,11 @@ namespace AGBLang.StdUtil {
 			}
 		}
 	};
-	public class InterceptBehaviorListener : BehaviorListener, Collector<BehaviorListener> {
+	public class InterceptBehaviorListener : BehaviorListener {
 		public BehaviorListener mainListener = null;
 		public BehaviorListener sideListener = null;
 		public bool didFinish = false;
+
 		void BehaviorListener.OnFinish() {
 			didFinish = true;
 			if (mainListener != null)
@@ -947,7 +982,7 @@ namespace AGBLang.StdUtil {
 			if (sideListener != null)
 				sideListener.OnFinish();
 		}
-		void Collector<BehaviorListener>.Collect(BehaviorListener _sideListener) {
+		public void Take(BehaviorListener _sideListener) {
 			sideListener = _sideListener;
 			if (didFinish)
 				sideListener.OnFinish();
@@ -978,15 +1013,16 @@ namespace AGBLang.StdUtil {
 
 				}
 				else if (itr.Current.waitTrigger != null) {
-					itr.Current.waitTrigger.BeginBehavior(interceptList, voteListener.NewListener());
+					itr.Current.waitTrigger.BeginBehavior((trigger)=>interceptList.Take(trigger), voteListener.NewListener());
 				}
 			}
 			voteListener.AllowDetermineResult();
 		}
 
-		void Collector<BehaviorTrigger>.Collect(BehaviorTrigger newElement) {
+		void Taker<BehaviorTrigger>.Take(BehaviorTrigger newElement) {
 			bTriggers.Add(new VariousTrigger { trigger = newElement });
 		}
+		void Taker<BehaviorTrigger>.None() {}
 	}
 	[System.Serializable]
 	public class ProcessGroupSetting {

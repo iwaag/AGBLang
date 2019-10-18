@@ -22,7 +22,7 @@ namespace AGBLang {
 	#endregion
 	#region interpreter
 	public interface NaturalLanguageProcessor {
-		void PerformSyntacticProcess(string naturalLanguage, AsyncCollector<GrammarBlock> listener);
+		void PerformSyntacticProcess(string naturalLanguage, Taker<GrammarBlock> listener);
 	}
 	public interface ConfigurableLProcessor : NaturalLanguageProcessor {
 		void SetFormat(string configuration);

@@ -130,8 +130,8 @@ namespace AGBLang.StdUtil {
 			if (passiveVerbList == null)
 				return default(GBlockConvertResult);
 			//search normal verbs
-			List<GrammarBlock> normalVerbList = null;
 #if false
+			List<GrammarBlock> normalVerbList = null;
 			GrammarBlockUtils.ForEachUnits(
 				originalVerbs,
 				(gUnit) => {

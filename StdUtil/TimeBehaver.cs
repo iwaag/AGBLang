@@ -31,8 +31,8 @@ namespace AGBLang.StdUtil {
 		}
 		public Dictionary<string, int> timeNameToMSec = new Dictionary<string, int>();
 		public List<CountDownCheckTrigger> triggers = new List<CountDownCheckTrigger>();
-		public void ReadyBehavior(BehaviorExpression bExp, BehaviorRequestListener bReqLis) {
-			//stub : explicit time passing
+		public BehaviorTrigger ReadyBehavior(BehaviorExpression bExp, BehaviorReadySupport bReqLis) {
+			return null;
 		}
 		class TimeCountVisitor : GrammarBlockVisitor {
 			public float result = 0;
@@ -67,12 +67,13 @@ namespace AGBLang.StdUtil {
 			GrammarBlockUtils.VisitGrammarBlock(timeExpression, vis);
 			return vis.result;
 		}
-		void BehaviorChecker.ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorCheckRequestListener chkReqListener) {
+		BehaviorCheckTrigger BehaviorChecker.ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorReadySupport chkReqListener) {
 			if (string.Compare(bExpr.verb.word, "pass", true) == 0) {
 				var newTrigger = new CountDownCheckTrigger { triggerTime = TimeExpresssionToFloatSec(bExpr.subject) };
 				triggers.Add(newTrigger);
-				chkReqListener.OnSucceed(newTrigger);
+				return newTrigger;
 			}
+			return null;
 		}
         public void Update() {
             foreach (var trigger in triggers) {

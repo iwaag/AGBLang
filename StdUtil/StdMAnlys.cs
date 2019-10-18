@@ -54,11 +54,12 @@ namespace AGBLang.StdUtil {
 				return unitCluster;
 			return null;
 		}
-		void MorphemeAnalyzer.AnalyzeFormat(string naturalLanguage, AsyncCollector<DivisibleEnumerable<Morpheme>> listener) {
+		void MorphemeAnalyzer.AnalyzeFormat(string naturalLanguage, Taker<DivisibleEnumerable<Morpheme>> listener) {
 			var result = AnalyzeImmediate(naturalLanguage);
 			if(result != null)
-				listener.Collect(result);
-			listener.OnFinish();
+				listener.Take(result);
+			else
+				listener.None();
 		}
 		public class MorphemeCluster : DivisibleEnumerable<Morpheme> {
 			public List<Morpheme> units;
