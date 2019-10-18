@@ -219,11 +219,31 @@ namespace AGBLang.StdUtil {
 	public class IGAnlys_PolymorphicWord : IncrementalGAnalyzer {
 		public List<IGAnlys_Word> wordAnalyzers = new List<IGAnlys_Word>();
 		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
-			foreach (var wordAnalyzer in wordAnalyzers) {
-				if (wordAnalyzer.IsMatching(input)) {
-					listener.OnMatch(input.GetAdvanced(wordAnalyzer.words.Count), wordAnalyzers[0]);
-					return;
+			UnitProcess(input, 0, listener);
+		}
+		public void UnitProcess(GAnlysInput input, int fromIndex, IncrGAnalysisListener listener) {
+			for (int index = fromIndex; index < wordAnalyzers.Count; index++) {
+				if (wordAnalyzers[index].IsMatching(input)) {
+					if (index < wordAnalyzers.Count - 1) {
+						listener.OnMatch(input.GetAdvanced(wordAnalyzers[index].words.Count), wordAnalyzers[0], new PrvtAltGAnlys {
+							parent = this,
+							index = index + 1,
+							input = input
+						}
+						);
+					}
+					else {
+						listener.OnMatch(input.GetAdvanced(wordAnalyzers[index].words.Count), wordAnalyzers[0], null);
+					}
 				}
+			}
+		}
+		class PrvtAltGAnlys : AlternativeIncrGAnalyzer {
+			public IGAnlys_PolymorphicWord parent;
+			public int index;
+			public GAnlysInput input;
+			void AlternativeIncrGAnalyzer.AnalyzeAgain(IncrGAnalysisListener listener) {
+				parent.UnitProcess(input, index, listener);
 			}
 		}
 	}
