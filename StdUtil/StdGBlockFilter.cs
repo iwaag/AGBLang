@@ -71,9 +71,9 @@ namespace AGBLang.StdUtil {
 			return (mainConverter as GBlockConverter).ConvertGBlock(sourceGBlock, listener);
 		}
 	}
-	public class StdGBlockFilter : ImmediatePicker<GrammarBlock, GrammarBlock> {
+	public class StdGBlockFilter : ImmediateGiver<GrammarBlock, GrammarBlock> {
 		public System.Action<GrammarBlock> onBeginSentenceLine;
-		GrammarBlock ImmediatePicker<GrammarBlock, GrammarBlock>.PickBestElement(GrammarBlock key) {
+		GrammarBlock ImmediateGiver<GrammarBlock, GrammarBlock>.PickBestElement(GrammarBlock key) {
 			var listener = new StdGBlockConvertListener();
 			var rootConv = new RootGBlockConverter();
 			listener._metaConverter = GBlockConverter_Default.instance;
@@ -102,8 +102,8 @@ namespace AGBLang.StdUtil {
 
 		GBlockConverter GBlockConvertListener.modConverter => clientListener.modConverter;
 
-		void GBlockConvertListener.AcceptAdditional(Collector<GrammarBlock> metaCollector, Collector<GrammarBlock> modCollector) {
-			clientListener.AcceptAdditional(metaCollector, modCollector);
+		void GBlockConvertListener.AcceptAdditional(Taker<GrammarBlock> metaTaker, Taker<GrammarBlock> modTaker) {
+			clientListener.AcceptAdditional(metaTaker, modTaker);
 		}
 	}*/
 

@@ -5,7 +5,7 @@ using AGDev;
 namespace AGBLang.StdUtil {
 	public class StdGrammarAnalyzer : GrammarAnalyzer {
 		public IncrementalGAnalyzer incrGAnalyzer;
-		void GrammarAnalyzer.AnalyzeGrammar(GAnlysInput input, AsyncCollector<GrammarBlock> listener) {
+		void GrammarAnalyzer.AnalyzeGrammar(GAnlysInput input, Taker<GrammarBlock> listener) {
 			var result = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.sentenceCluster };
 			Action<GrammarBlock> adder = (gBlock) => result.AddBlock(gBlock);
 			var nextInput = input;
@@ -19,7 +19,7 @@ namespace AGBLang.StdUtil {
 				easyLis.listener.OnResultRequested(adder);
 			}
 			if(result.content != null) {
-				listener.Collect(result.content);
+				listener.Take(result.content);
 			}
 		}
 	}
@@ -74,7 +74,7 @@ namespace AGBLang.StdUtil {
 		public class PrvtAfterMatchListener : AfterMatchListener {
 			public IGAnlys_ModifyBlock parent = null;
 			public List<IndexedAfterMatchListener> updatedMatches;
-			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 				MutableGrammarBlock baseBlock = null;
 				List<GrammarBlock> modifiers = new List<GrammarBlock>();
 				foreach (var afLIs in updatedMatches) {
@@ -91,7 +91,7 @@ namespace AGBLang.StdUtil {
 					foreach (var mod in modifiers) {
 						baseBlock.AddModifier(mod);
 					}
-					blockCollector(baseBlock);
+					blockTaker(baseBlock);
 				}
 			}
 		}
@@ -128,7 +128,7 @@ namespace AGBLang.StdUtil {
 		}
 		public class IgnoreAfterMatchListener : AfterMatchListener {
 			public AfterMatchListener original;//debug
-			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 			}
 		}
 	}
@@ -144,7 +144,7 @@ namespace AGBLang.StdUtil {
 	}
 	public class StbAfterLis : AfterMatchListener {
 		public static StbAfterLis instance { get; } = new StbAfterLis();
-		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {}
+		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {}
 	}
 	public class IGAnlys_AddMeta : ResultChangingIGAnalyzer {
 		public List<GrammarBlock> metas = new List<GrammarBlock>();
@@ -154,13 +154,13 @@ namespace AGBLang.StdUtil {
 		public class AddMetaAMatchListener : AfterMatchListener {
 			public IGAnlys_AddMeta parent;
 			public AfterMatchListener baseListener;
-			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 				baseListener.OnResultRequested(
 					(gBlock) => {
 						foreach (var meta in parent.metas) {
 							gBlock.AddMetaInfo(meta);
 						}
-						blockCollector(gBlock);
+						blockTaker(gBlock);
 					}
 				);
 			}
@@ -173,16 +173,16 @@ namespace AGBLang.StdUtil {
 	}
 	public class ClusteringAfterMatchListener : AfterMatchListener {
 		public AfterMatchListener baseAMatchLis;
-		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 			var mClusterGBlock = new StdMutableClusterGBlock();
 			MutableGrammarBlock lastBlock = null;
 			baseAMatchLis.OnResultRequested(
 				(gBlock) => mClusterGBlock.subBlocks.Add(lastBlock = gBlock)
 			);
 			if (mClusterGBlock.subBlocks.Count == 1)
-				blockCollector(lastBlock);
+				blockTaker(lastBlock);
 			else if (mClusterGBlock.subBlocks.Count > 1)
-				blockCollector(mClusterGBlock);
+				blockTaker(mClusterGBlock);
 		}
 	}
 	public class IGAnlys_Word : IncrementalGAnalyzer, AfterMatchListener {
@@ -212,8 +212,8 @@ namespace AGBLang.StdUtil {
 			if(IsMatching(input))
 				listener.OnMatch(input.GetAdvanced(words.Count), this);
 		}
-		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
-			blockCollector(new StdMutableGUnit { word = integrated });
+		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
+			blockTaker(new StdMutableGUnit { word = integrated });
 		}
 	}
 	public class IGAnlys_PolymorphicWord : IncrementalGAnalyzer {
@@ -272,9 +272,9 @@ namespace AGBLang.StdUtil {
 		}
 		public class PrvtLis : AfterMatchListener {
 			public IEnumerable<AfterMatchListener> listeners;
-			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 				foreach (var listener in listeners) {
-					listener.OnResultRequested(blockCollector);
+					listener.OnResultRequested(blockTaker);
 				}
 			}
 		}
@@ -352,8 +352,8 @@ namespace AGBLang.StdUtil {
 		}
 		public class QuoteAfterMatchListener : AfterMatchListener {
 			public Morpheme unit;
-			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
-				blockCollector(new StdMutableGUnit { word = unit.word });
+			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
+				blockTaker(new StdMutableGUnit { word = unit.word });
 			}
 		}
 	}
@@ -378,10 +378,10 @@ namespace AGBLang.StdUtil {
 		}
 		public class PrvtALis : AfterMatchListener {
 			public List<MutableGrammarBlock> gBlocks = new List<MutableGrammarBlock>();
-			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 				if(gBlocks.Count == 1) {
 					gBlocks[0].AddMetaInfo(StdMetaInfos.unreadable);
-					blockCollector(gBlocks[0]);
+					blockTaker(gBlocks[0]);
 				}
 				else if (gBlocks.Count > 1) {
 					var cluster = new StdMutableClusterGBlock();
@@ -389,7 +389,7 @@ namespace AGBLang.StdUtil {
 						cluster.subBlocks.Add(block);
 					}
 					(cluster as MutableGrammarBlock).AddMetaInfo(StdMetaInfos.unreadable);
-					blockCollector(cluster);
+					blockTaker(cluster);
 				}
 			}
 		}
@@ -495,9 +495,9 @@ namespace AGBLang.StdUtil {
 	}
 	public class ClusterAfterListener : AfterMatchListener {
 		public List<IndexedAfterMatchListener> afterListeners;
-		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockCollector) {
+		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 			foreach (var afterListener in afterListeners) {
-				afterListener.afterListener.OnResultRequested(blockCollector);
+				afterListener.afterListener.OnResultRequested(blockTaker);
 			}
 		}
 	}

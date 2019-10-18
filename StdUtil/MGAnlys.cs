@@ -4,24 +4,19 @@ namespace AGBLang.StdUtil {
 	public class MGSyntacticProcessor : NaturalLanguageProcessor {
 		public MorphemeAnalyzer mAnalyzer;
 		public GrammarAnalyzer gAnalyzer;
-		void NaturalLanguageProcessor.PerformSyntacticProcess(string naturalLanguage, AsyncCollector<GrammarBlock> listener) {
+		void NaturalLanguageProcessor.PerformSyntacticProcess(string naturalLanguage, Taker<GrammarBlock> listener) {
 			mAnalyzer.AnalyzeFormat(naturalLanguage, new FLis { parent = this, rootListener = listener});
 		}
-		public class FLis : AsyncCollector<DivisibleEnumerable<Morpheme>> {
+		public class FLis : Taker<DivisibleEnumerable<Morpheme>> {
 			public MGSyntacticProcessor parent;
-			public AsyncCollector<GrammarBlock> rootListener;
-			public bool didCollect = false;
-			void Collector<DivisibleEnumerable<Morpheme>>.Collect(DivisibleEnumerable<Morpheme> item) {
-				didCollect = true;
+			public Taker<GrammarBlock> rootListener;
+			void Taker<DivisibleEnumerable<Morpheme>>.Take(DivisibleEnumerable<Morpheme> item) {
 				parent.gAnalyzer.AnalyzeGrammar(new GInput { morphemes = item }, rootListener);
 			}
-
-			void AsyncCollector<DivisibleEnumerable<Morpheme>>.OnFinish() {
-				if (!didCollect) {
-					rootListener.OnFinish();
-				}
-
+			void Taker<DivisibleEnumerable<Morpheme>>.None() {
+				rootListener.None();
 			}
+
 			public class GInput : GAnlysInput {
 				public DivisibleEnumerable<Morpheme> morphemes;
 				IEnumerable<Morpheme> GAnlysInput.followings => morphemes;
@@ -54,19 +49,19 @@ namespace AGBLang.StdUtil {
 		DivisibleEnumerable<Type> GetFollowing(int advanceCount);
 	}
 	public interface MorphemeAnalyzer {
-		void AnalyzeFormat(string naturalLanguage, AsyncCollector<DivisibleEnumerable<Morpheme>> listener);
+		void AnalyzeFormat(string naturalLanguage, Taker<DivisibleEnumerable<Morpheme>> listener);
 	}
 	#endregion
 	#region grammar analysis
 	public interface GrammarAnalyzer {
-		void AnalyzeGrammar(GAnlysInput input, AsyncCollector<GrammarBlock> listener);
+		void AnalyzeGrammar(GAnlysInput input, Taker<GrammarBlock> listener);
 	}
 	public interface GAnlysInput {
 		GAnlysInput GetAdvanced(int advanceCount);
 		IEnumerable<Morpheme> followings { get; }
 	}
 	public interface AfterMatchListener {
-		void OnResultRequested(System.Action<MutableGrammarBlock> blockCollector);
+		void OnResultRequested(System.Action<MutableGrammarBlock> blockTaker);
 	}
 	public interface IncrGAnalysisListener {
 		void OnMatch(GAnlysInput _nextInput, AfterMatchListener listener, AlternativeIncrGAnalyzer alternative = null);

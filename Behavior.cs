@@ -2,8 +2,8 @@
 using AGDev;
 namespace AGBLang {
 	#region behavior
-	public interface BehaviorRequestListener {
-		void OnSucceed(BehaviorTrigger trigger);
+	public interface BehaviorReadySupport {
+		AssetMediator assetMediator { get; }
 	}
 
 	public interface TriggerInfo {
@@ -19,11 +19,18 @@ namespace AGBLang {
 		public IEnumerable<NameAndBTrigger> namedTriggers;
 	}
 	public interface BehaviorAnalyzer {
-		void AnalyzeBehavior(GrammarBlock expressionGBlock, AsyncCollector<BehaviorTriggerSet> listener);
+		void AnalyzeBehavior(GrammarBlock expressionGBlock, Taker<BehaviorTriggerSet> listener);
 		bool AskForFloatAnswer(GrammarBlock question, AnswerListener<float> listener);
 	}
 	public interface ConfigurableBehaviorAnalyzer : BehaviorAnalyzer {
 		void AddBehaver(Behaver behaver);
+	}
+	public interface AssetMediator {
+		AssetType GetImplementedAsset<AssetType>(GrammarBlock gBlock);
+		AssetType GetImplementedModule<AssetType>();
+		void SeekAsset<AssetType>(GrammarBlock gBlock, Taker<AssetType> taker);
+		void SeekModule<AssetType>(Taker<AssetType> taker);
+		IEnumerable<AssetType> GetImplementedAssets<AssetType>();
 	}
 	#endregion
 	#region behaver
@@ -36,16 +43,16 @@ namespace AGBLang {
 		AttributeMatchResult MatchAttribue(GrammarBlock attribute);
 	}
 	public interface BehaviorSetter {
-		void ReadyBehavior(BehaviorExpression bExpr, BehaviorRequestListener reqListener);
+		BehaviorTrigger ReadyBehavior(BehaviorExpression bExpr, BehaviorReadySupport reqListener);
 	}
 	public interface BehaviorChecker {
-		void ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorCheckRequestListener chkReqListener);
+		BehaviorCheckTrigger ReadyCheckBehavior(BehaviorExpression bExpr, BehaviorReadySupport chkReqListener);
 	}
 	public interface BehaviorSetCheck : BehaviorSetter, BehaviorChecker { }
 	public interface Behaver : BehaviorSetCheck, AttributeMatcher { }
 	#endregion
 	#region behavior check
-	public interface BehaviorCheckRequestListener {
+	public interface BehaviorCheckReadySupport {
 		void OnSucceed(BehaviorCheckTrigger trigger);
 	}
 	public interface BehaviorCheckListener {
@@ -66,7 +73,7 @@ namespace AGBLang {
 		IEnumerable<string> givenBy { get; }
 	}
 	public interface CommonSenseGiver {
-		Picker<NounCommonSenseUnit, string> nounCSPicker { get; }
+		Giver<NounCommonSenseUnit, string> nounCSGiver { get; }
 	}
 	#endregion
 }

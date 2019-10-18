@@ -304,13 +304,13 @@ namespace AGBLang.StdUtil {
 			}
 		}
 	}
-	public class IncrGAnlysDictionary : ImmediatePicker<IncrementalGAnalyzer, string> {
+	public class IncrGAnlysDictionary : ImmediateGiver<IncrementalGAnalyzer, string> {
 		public Dictionary<string, IncrementalGAnalyzer> dict = new Dictionary<string, IncrementalGAnalyzer>(System.StringComparer.CurrentCultureIgnoreCase);
 		public Dictionary<string, IGAnlys_Candidates> categories = new Dictionary<string, IGAnlys_Candidates>(System.StringComparer.CurrentCultureIgnoreCase);
 		public void AddCandidate(string name, IGAnlys_Candidates candidate) {
 			dict[name] = categories[name] = new IGAnlys_Candidates();
 		}
-		IncrementalGAnalyzer ImmediatePicker<IncrementalGAnalyzer, string>.PickBestElement(string key) {
+		IncrementalGAnalyzer ImmediateGiver<IncrementalGAnalyzer, string>.PickBestElement(string key) {
 			dict.TryGetValue(key, out IncrementalGAnalyzer found);
 			return found;
 		}

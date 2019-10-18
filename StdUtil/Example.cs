@@ -86,20 +86,20 @@ namespace AGBLang.StdUtil {
 			nlProcessor = new MGSyntacticProcessor { gAnalyzer = new StdGrammarAnalyzer { incrGAnalyzer = rootGAnlys }, mAnalyzer = mAnlys };
 		}
 
-		void NaturalLanguageProcessor.PerformSyntacticProcess(string naturalLanguage, AsyncCollector<GrammarBlock> listener) {
+		void NaturalLanguageProcessor.PerformSyntacticProcess(string naturalLanguage, Taker<GrammarBlock> listener) {
 			nlProcessor.PerformSyntacticProcess(naturalLanguage, new PrvtLis { listener = listener } );
 
 		}
-        class PrvtLis : AsyncCollector<GrammarBlock>  {
-            public AsyncCollector<GrammarBlock> listener;
-            void Collector<GrammarBlock>.Collect(GrammarBlock item) {
-                ImmediatePicker<GrammarBlock, GrammarBlock> filter = new StdGBlockFilter();
+        class PrvtLis : Taker<GrammarBlock>  {
+            public Taker<GrammarBlock> listener;
+            void Taker<GrammarBlock>.Take(GrammarBlock item) {
+                ImmediateGiver<GrammarBlock, GrammarBlock> filter = new StdGBlockFilter();
                 var filteredGBlock = filter.PickBestElement(item);
-                listener.Collect(filteredGBlock);
+                listener.Take(filteredGBlock);
             }
-
-            void AsyncCollector<GrammarBlock>.OnFinish() {
-            }
-        }
+			void Taker<GrammarBlock>.None() {
+				listener.None();
+			}
+		}
     }
 }
