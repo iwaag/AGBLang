@@ -2,9 +2,7 @@
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
-using AGAsset;
 using AGDev;
-using AGDev.StdUtil;
 
 namespace AGBLang.StdUtil {
 	public class ClusterBehaviorSetter : BehaviorSetter {

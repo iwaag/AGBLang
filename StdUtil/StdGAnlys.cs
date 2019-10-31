@@ -18,8 +18,11 @@ namespace AGBLang.StdUtil {
 				nextInput = easyLis.nextInput;
 				easyLis.listener.OnResultRequested(adder);
 			}
-			if(result.content != null) {
+			if (result.content != null) {
 				listener.Take(result.content);
+			}
+			else {
+				listener.None();
 			}
 		}
 	}
@@ -56,15 +59,15 @@ namespace AGBLang.StdUtil {
 		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
 			anaylzers[0].Analyze( input,
 				new ChainListener {
-					nextIndex = 1,
-					previoudMatches = new List<IndexedAfterMatchListener>(),
+					index = 0,
+					results = new List<IndexAndResult>(),
 					analyzers = anaylzers,
-					rootListener = listener,
+					finalListener = listener,
 					afterListenerFactory = CreateAfterListener
 				}
 			);
 		}
-		AfterMatchListener CreateAfterListener(List<IndexedAfterMatchListener> updatedMatches) {
+		AfterMatchListener CreateAfterListener(List<IndexAndResult> updatedMatches) {
 			return new PrvtAfterMatchListener {
 				parent = this,
 				updatedMatches = updatedMatches
@@ -73,18 +76,18 @@ namespace AGBLang.StdUtil {
 		}
 		public class PrvtAfterMatchListener : AfterMatchListener {
 			public IGAnlys_ModifyBlock parent = null;
-			public List<IndexedAfterMatchListener> updatedMatches;
+			public List<IndexAndResult> updatedMatches;
 			void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 				MutableGrammarBlock baseBlock = null;
 				List<GrammarBlock> modifiers = new List<GrammarBlock>();
 				foreach (var afLIs in updatedMatches) {
 					if (afLIs.index == 0 && parent.preMod != null)
-						afLIs.afterListener.OnResultRequested((mod) => modifiers.Add(mod));
+						afLIs.result.listener.OnResultRequested((mod) => modifiers.Add(mod));
 					else if ( (afLIs.index == 0 && parent.preMod == null) || (afLIs.index == 1 && parent.preMod != null)) {
-						afLIs.afterListener.OnResultRequested((mgBlock) => baseBlock = mgBlock);
+						afLIs.result.listener.OnResultRequested((mgBlock) => baseBlock = mgBlock);
 					}
 					else if ((afLIs.index == 1 && parent.preMod == null) || (afLIs.index == 2 && parent.preMod != null)) {
-						afLIs.afterListener.OnResultRequested((mod) => modifiers.Add(mod));
+						afLIs.result.listener.OnResultRequested((mod) => modifiers.Add(mod));
 					}
 				}
 				if (baseBlock != null) {
@@ -226,14 +229,13 @@ namespace AGBLang.StdUtil {
 				if (wordAnalyzers[index].IsMatching(input)) {
 					if (index < wordAnalyzers.Count - 1) {
 						listener.OnMatch(input.GetAdvanced(wordAnalyzers[index].words.Count), wordAnalyzers[0], new PrvtAltGAnlys {
-							parent = this,
-							index = index + 1,
-							input = input
-						}
-						);
+							parent = this, index = index + 1, input = input
+						});
+						return;
 					}
 					else {
 						listener.OnMatch(input.GetAdvanced(wordAnalyzers[index].words.Count), wordAnalyzers[0], null);
+						return;
 					}
 				}
 			}
@@ -248,6 +250,130 @@ namespace AGBLang.StdUtil {
 		}
 	}
 	public class IGAnlys_RepeatableBlock : IncrementalGAnalyzer {
+		public IncrementalGAnalyzer baseAnalyzer;
+		public IncrementalGAnalyzer conjectionAnalyzer;
+		public bool isConjectionOptional = false;
+		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
+			var easyLis = new EasyIncrGAnalysListener();
+			baseAnalyzer.Analyze(input, easyLis);
+			if (easyLis.didMatch) {
+				var alt = new PrvtAltIGAnlys { input = input, parent = this, previousAlt = easyLis.alternative, analyzers = new List<IncrementalGAnalyzer> { baseAnalyzer } };
+				listener.OnMatch(easyLis.nextInput, easyLis.listener, alt);
+			}
+		}
+		public class PrvtAltIGAnlys : AlternativeIncrGAnalyzer {
+			public GAnlysInput input;
+			public IGAnlys_RepeatableBlock parent;
+			public AlternativeIncrGAnalyzer previousAlt;
+			public List<IncrementalGAnalyzer> analyzers;
+			void AlternativeIncrGAnalyzer.AnalyzeAgain(IncrGAnalysisListener listener) {
+				#region try past alternatives
+				if (previousAlt != null){
+					var altLis = new EasyIncrGAnalysListener();
+					previousAlt.AnalyzeAgain(altLis);
+					if (altLis.didMatch) {
+						var alt = new PrvtAltIGAnlys { parent = parent, previousAlt = altLis.alternative, analyzers = analyzers, input = input };
+						listener.OnMatch(altLis.nextInput, altLis.listener, alt);
+						return;
+					}
+				}
+				#endregion
+				#region try repeat
+				var newAnalyzers = new List<IncrementalGAnalyzer>(analyzers);
+				if (parent.conjectionAnalyzer != null) {
+					if (parent.isConjectionOptional)
+						newAnalyzers.Add(new IGAnlys_IgnoreBlock { baseAnalyzer = new IGAnlys_Optional { baseAnalyzer = parent.conjectionAnalyzer } });
+					else
+						newAnalyzers.Add(new IGAnlys_IgnoreBlock { baseAnalyzer = parent.conjectionAnalyzer });
+				}
+				newAnalyzers.Add(parent.baseAnalyzer);
+				var repeatLis = new EasyIncrGAnalysListener();
+				newAnalyzers[0].Analyze(
+					input,
+					new ChainListener {
+						index = 0,
+						results = new List<IndexAndResult>(),
+						analyzers = newAnalyzers,
+						finalListener = repeatLis,
+						afterListenerFactory = DefaultAfterListener
+					}
+				);
+				if (repeatLis.didMatch) {
+					listener.OnMatch(repeatLis.nextInput, repeatLis.listener,
+						new PrvtAltIGAnlys { analyzers = newAnalyzers, input = input, parent = parent, previousAlt = repeatLis.alternative}
+					);
+				}
+				#endregion
+
+			}
+			static AfterMatchListener DefaultAfterListener(List<IndexAndResult> updatedMatches) {
+				return new ClusterAfterListener { afterListeners = updatedMatches };
+			}
+		}
+	}
+	public class IGAnlys_RepeatableBlockOld2 : IncrementalGAnalyzer {
+		public IncrementalGAnalyzer baseAnalyzer;
+		public IncrementalGAnalyzer conjectionAnalyzer;
+		public bool isConjectionOptional = true;
+		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
+			var easyLis = new EasyIncrGAnalysListener();
+			baseAnalyzer.Analyze(input, easyLis);
+			if (easyLis.didMatch) {
+				var alt = new PrvtAltIGAnlys { parent = this, previousResult = new List<EasyIncrGAnalysListener> { easyLis } };
+				listener.OnMatch(easyLis.nextInput, easyLis.listener, alt);
+			}
+		}
+		public class PrvtAltIGAnlys : AlternativeIncrGAnalyzer {
+			public IGAnlys_RepeatableBlockOld2 parent;
+			public List<EasyIncrGAnalysListener> previousResult;
+			void AlternativeIncrGAnalyzer.AnalyzeAgain(IncrGAnalysisListener listener) {
+				var nextInput = previousResult[previousResult.Count-1].nextInput;
+				var newResultStack = new List<EasyIncrGAnalysListener>(previousResult);
+				#region try past alternatives
+				while (newResultStack.Count != 0) {
+					var lastResult = newResultStack[newResultStack.Count - 1];
+					if (lastResult.alternative != null) {
+						var altLis = new EasyIncrGAnalysListener();
+						lastResult.alternative.AnalyzeAgain(altLis);
+						if (altLis.didMatch) {
+							newResultStack.RemoveAt(newResultStack.Count - 1);
+							newResultStack.Add(lastResult);
+							listener.OnMatch(altLis.nextInput, new ClusterAMListener { listeners = newResultStack }, new PrvtAltIGAnlys { parent = parent, previousResult = newResultStack });
+							return;
+						}
+					}
+				}
+				#endregion
+				#region try repeat
+				var conjLis = new EasyIncrGAnalysListener();
+				parent.conjectionAnalyzer.Analyze(nextInput, conjLis);
+				if (conjLis.didMatch) {
+					nextInput = conjLis.nextInput;
+				}
+				if (conjLis.didMatch || parent.isConjectionOptional) {
+					var mainLis = new EasyIncrGAnalysListener();
+					parent.baseAnalyzer.Analyze(nextInput, mainLis);
+					if (mainLis.didMatch) {
+						newResultStack.Add(mainLis);
+						listener.OnMatch(mainLis.nextInput, new ClusterAMListener { listeners = newResultStack }, new PrvtAltIGAnlys { parent = parent, previousResult = newResultStack });
+						return;
+					}
+				}
+				#endregion
+				
+			}
+		}
+	}
+	public class ClusterAMListener : AfterMatchListener {
+		public IEnumerable<EasyIncrGAnalysListener> listeners;
+		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
+			foreach (var listener in listeners) {
+				listener.listener.OnResultRequested(blockTaker);
+			}
+		}
+	}
+	#if false
+	public class IGAnlys_RepeatableBlockOld : IncrementalGAnalyzer {
 		public IncrementalGAnalyzer baseAnalyzer;
 		public IncrementalGAnalyzer conjectionAnalyzer;
 		public bool isConjectionOptional = true;
@@ -271,12 +397,13 @@ namespace AGBLang.StdUtil {
 						return;
 					else
 						break;
-				} else {
+				}
+				else {
 					resultArchives.Push(easyLis);
 				}
 			}
 			List<AfterMatchListener> afLiss = new List<AfterMatchListener>();
-			foreach(var result in resultArchives) {
+			foreach (var result in resultArchives) {
 				afLiss.Add(result.listener);
 			}
 			bool hasAlt = false;
@@ -285,7 +412,7 @@ namespace AGBLang.StdUtil {
 					hasAlt = true;
 			}
 			AlternativeIncrGAnalyzer altLis = null;
-			if(hasAlt) {
+			if (hasAlt) {
 				altLis = new PrvtAltIGAnlys { givenResultArchive = resultArchives, parent = this };
 			}
 			listener.OnMatch(resultArchives.Peek().nextInput, new PrvtLis { listeners = afLiss }, altLis);
@@ -359,6 +486,7 @@ namespace AGBLang.StdUtil {
 			}
 		}
 	}
+	#endif
 	public class IGAnlys_Quote : IncrementalGAnalyzer {
 		public int morphemeID;
 		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
@@ -425,11 +553,12 @@ namespace AGBLang.StdUtil {
 				didHit = true;
 				if (alternative != null) {
 					clientListner.OnMatch(nextInput, listener,
-						new UnitAltAnlys { parent = parent, currentIndex = nextAnalyzerIndex, subAltAnalyzer = alternative, originalInput = originalInput });
+						new UnitAltAnlys { parent = parent, nextIndex = nextAnalyzerIndex, subAltAnalyzer = alternative, originalInput = originalInput }
+					);
 				}
 				else {
 					if (nextAnalyzerIndex < parent.analyzers.Count) {
-						clientListner.OnMatch(nextInput, listener, new UnitAltAnlys { parent = parent, currentIndex = nextAnalyzerIndex, originalInput = originalInput });
+						clientListner.OnMatch(nextInput, listener, new UnitAltAnlys { parent = parent, nextIndex = nextAnalyzerIndex, originalInput = originalInput });
 					}
 					else {
 						clientListner.OnMatch(nextInput, listener);
@@ -439,19 +568,20 @@ namespace AGBLang.StdUtil {
 		}
 		public class UnitAltAnlys : AlternativeIncrGAnalyzer {
 			public IGAnlys_Candidates parent;
-			public int currentIndex;
+			public int nextIndex;
 			public GAnlysInput originalInput;
 
 			public AlternativeIncrGAnalyzer subAltAnalyzer;
 
 			void AlternativeIncrGAnalyzer.AnalyzeAgain(IncrGAnalysisListener listener) {
-				var innerListener = new SubListener { clientListner = listener, parent = parent, nextAnalyzerIndex = currentIndex + 1, originalInput = originalInput };
+				var index = nextIndex;
+				var innerListener = new SubListener { clientListner = listener, parent = parent, nextAnalyzerIndex = index, originalInput = originalInput };
 				if (subAltAnalyzer != null)
 					subAltAnalyzer.AnalyzeAgain(innerListener);
-				while (!innerListener.didHit && currentIndex < parent.analyzers.Count) {
-					parent.analyzers[currentIndex].Analyze(originalInput, innerListener);
-					currentIndex++;
+				while (!innerListener.didHit && index < parent.analyzers.Count) {
 					innerListener.nextAnalyzerIndex++;
+					parent.analyzers[index].Analyze(originalInput, innerListener);
+					index++;
 				}
 			}
 		}
@@ -481,7 +611,73 @@ namespace AGBLang.StdUtil {
 			afterListener = _afterListener;
 		}
 	}
+	public struct IndexAndResult {
+		public int index;
+		public EasyIncrGAnalysListener result;
+	}
 	public class ChainListener : IncrGAnalysisListener {
+		public class PrvtAltAnlys : AlternativeIncrGAnalyzer {
+			public List<IndexAndResult> results;
+			public List<IncrementalGAnalyzer> analyzers;
+			public Func<List<IndexAndResult>, AfterMatchListener> afterListenerFactory;
+			void AlternativeIncrGAnalyzer.AnalyzeAgain(IncrGAnalysisListener listener) {
+				var newResults = new List<IndexAndResult>(results);
+				while (newResults.Count > 0) {
+					var lastResult = newResults[newResults.Count-1];
+					newResults.RemoveAt(newResults.Count - 1);
+					var altLis = new ChainListener {
+						finalListener = listener,
+						index = lastResult.index,
+						analyzers = analyzers,
+						afterListenerFactory = afterListenerFactory,
+						results = newResults
+					};
+					lastResult.result.alternative?.AnalyzeAgain(altLis);
+					if (altLis.didFinalMatch) {
+						return;
+					}
+				}
+			}
+		}
+		public List<IndexAndResult> results;
+		public int index;
+		public IncrGAnalysisListener finalListener;
+		public bool didFinalMatch = false;
+		public List<IncrementalGAnalyzer> analyzers;
+		public Func<List<IndexAndResult>, AfterMatchListener> afterListenerFactory;
+		void IncrGAnalysisListener.OnMatch(GAnlysInput nextInput, AfterMatchListener afterListener, AlternativeIncrGAnalyzer alternative) {
+			results.Add(new IndexAndResult { 
+				index = index,
+				result = new EasyIncrGAnalysListener { alternative = alternative, didMatch = true, listener = afterListener, nextInput = nextInput}
+			});
+			//last analyzer
+			if (index == analyzers.Count - 1) {
+				didFinalMatch = true;
+				finalListener.OnMatch(nextInput, afterListenerFactory(new List<IndexAndResult>(results)), new PrvtAltAnlys { results = new List<IndexAndResult>(results), afterListenerFactory = afterListenerFactory, analyzers = analyzers});
+			}
+			//go to next analyzer
+			else{
+				var nextLis = new ChainListener { afterListenerFactory = afterListenerFactory, analyzers = analyzers, finalListener = finalListener, index = index + 1, results = results };
+				analyzers[index+1].Analyze(nextInput, nextLis);
+				didFinalMatch = nextLis.didFinalMatch;
+				if (!nextLis.didFinalMatch){
+					bool hasAlternative = false;
+					foreach (var result in results) {
+						if(result.result.alternative != null){
+							hasAlternative = true;
+							break;
+						}
+					}
+					if (hasAlternative) {
+						AlternativeIncrGAnalyzer alt = new PrvtAltAnlys { afterListenerFactory = afterListenerFactory, analyzers = analyzers, results = new List<IndexAndResult>(results) };
+						alt.AnalyzeAgain(finalListener);
+					}
+				}
+			}
+
+		}
+	}
+	public class ChainListenerOld : IncrGAnalysisListener {
 		public IncrGAnalysisListener rootListener;
 		public List<IncrementalGAnalyzer> analyzers;
 		public List<IndexedAfterMatchListener> previoudMatches;
@@ -492,7 +688,7 @@ namespace AGBLang.StdUtil {
 			updatedMatches.Add(new IndexedAfterMatchListener(nextIndex-1, afterListener));
 			if (nextIndex < analyzers.Count) {
 				var recordingListener = new RecordingIncrGAnalysListener {
-					baseListener = new ChainListener {
+					baseListener = new ChainListenerOld {
 						analyzers = analyzers, nextIndex = nextIndex + 1, rootListener = rootListener, previoudMatches = updatedMatches, afterListenerFactory = afterListenerFactory
 					}
 				};
@@ -500,7 +696,7 @@ namespace AGBLang.StdUtil {
 				if (!recordingListener.didMatch && alternative != null) {
 					updatedMatches.RemoveAt(updatedMatches.Count - 1);
 					AlternativeIncrGAnalyzer currentAlternative = alternative;
-					var altListener = new ChainListener {
+					var altListener = new ChainListenerOld {
 						analyzers = analyzers, nextIndex = nextIndex, rootListener = rootListener, previoudMatches = updatedMatches, afterListenerFactory = afterListenerFactory
 					};
 					alternative.AnalyzeAgain(altListener);
@@ -509,15 +705,15 @@ namespace AGBLang.StdUtil {
 			}
 			else {
 				//rootListener.OnMatch(nextInput, new ClusterAfterListener { afterListeners = updatedMatches });
-				rootListener.OnMatch(nextInput, afterListenerFactory(updatedMatches));
+				rootListener.OnMatch(nextInput, afterListenerFactory(updatedMatches), alternative);
 			}
 		}
 	}
 	public class ClusterAfterListener : AfterMatchListener {
-		public List<IndexedAfterMatchListener> afterListeners;
+		public List<IndexAndResult> afterListeners;
 		void AfterMatchListener.OnResultRequested(Action<MutableGrammarBlock> blockTaker) {
 			foreach (var afterListener in afterListeners) {
-				afterListener.afterListener.OnResultRequested(blockTaker);
+				afterListener.result.listener.OnResultRequested(blockTaker);
 			}
 		}
 	}
@@ -528,14 +724,15 @@ namespace AGBLang.StdUtil {
 			analyzers[0].Analyze(
 				input,
 				new ChainListener {
-					nextIndex = 1,
-					previoudMatches = new List<IndexedAfterMatchListener>(),
-					analyzers = analyzers, rootListener = listener,
+					index = 0,
+					results = new List<IndexAndResult>(),
+					analyzers = analyzers,
+					finalListener = listener,
 					afterListenerFactory = DefaultAfterListener
 				}
 			);
 		}
-		static AfterMatchListener DefaultAfterListener(List<IndexedAfterMatchListener> updatedMatches) {
+		static AfterMatchListener DefaultAfterListener(List<IndexAndResult> updatedMatches) {
 			return new ClusterAfterListener { afterListeners = updatedMatches };
 		}
 	}
