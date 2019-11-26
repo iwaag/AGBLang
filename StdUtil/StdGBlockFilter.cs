@@ -57,7 +57,9 @@ namespace AGBLang.StdUtil {
 			convList.Add(activizer);
 			convList.Add(eachConv);
 			convList.Add(defaultConv);
-			activizer.defaultSubject = new StdMutableGUnit { word = "player"};
+            MutableGrammarUnit subj = new StdMutableGUnit { word = "player" };
+            subj.AddMetaInfo(StdMetaInfos.nominalBlock);
+            activizer.defaultSubject = subj;
 		}
 		public void SetPronounSolution(GrammarBlock sourceGBlock, GBlockConvertListener listener) {
 			GrammarBlockUtils.DeepSeek(sourceGBlock, StdMetaInfos.nominalBlock.word, (gBlock) => {
