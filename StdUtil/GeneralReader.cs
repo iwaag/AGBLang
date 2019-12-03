@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AGDev;
-
+using AGDev.StdUtil;
 namespace AGBLang.StdUtil {
 	public interface GenericReader {
 		void ReadBool(string name, bool value);
@@ -64,10 +64,11 @@ namespace AGBLang.StdUtil {
 			}
 			return null;
 		}
-		public IGAnlys_Word ForceWordANlys(string key) {
+		public IGAnlys_Word ForceWordANlys(string key, List<string> contentMorphemes) {
 			var morphemes = analyzer.AnalyzeImmediate(key);
 			IGAnlys_Word wordBeingBuilt = null;
 			foreach (var morpheme in morphemes) {
+				contentMorphemes.Add(morpheme.word);
 				if (wordBeingBuilt == null)
 					wordBeingBuilt = new IGAnlys_Word();
 				wordBeingBuilt.AddMorphemeText(morpheme.word);
@@ -88,7 +89,8 @@ namespace AGBLang.StdUtil {
 		}
 	}
 	public class FormatReader : GenericReader {
-		public static  IncrementalGAnalyzer cojunctionIGAnlys;
+		public static IncrementalGAnalyzer cojunctionIGAnlys;
+		public static AnalyzePreparer preparer;
 		public static IncrGAnlysDictionary gAnlysDict;
 		public static FormToGAnlys fReader;
 		public static Dictionary<string, GrammarBlock> metaInfos;
@@ -98,6 +100,7 @@ namespace AGBLang.StdUtil {
 		public List<string> attributes = new List<string>();
 		public List<string> preModifiers = new List<string>();
 		public List<string> postModifiers = new List<string>();
+		public List<string> contentMorphemes = new List<string>();
 		public bool isPolymorphicWord = false;
 		public bool isEnumerable = false;
 		public bool isConjunctionOptional = false;
@@ -108,14 +111,14 @@ namespace AGBLang.StdUtil {
 			if (setting_isPolymorphicWord) {
 				IGAnlys_PolymorphicWord poly = new IGAnlys_PolymorphicWord();
 				foreach (var form in forms) {
-					poly.wordAnalyzers.Add(fReader.ForceWordANlys(form));
+					poly.wordAnalyzers.Add(fReader.ForceWordANlys(form, contentMorphemes));
 				}
 				return poly;
 			}
 			if (forms.Count > 1) {
 				IGAnlys_Candidates candidates = new IGAnlys_Candidates { };
 				foreach (var form in forms) {
-					candidates.analyzers.Add(fReader.PickBestElement(form));
+					candidates.candidates.Add(fReader.PickBestElement(form));
 				}
 				return candidates;
 			}
@@ -150,7 +153,16 @@ namespace AGBLang.StdUtil {
 				analyzer = metaAnlys;
 			}
 			foreach (var category in categoriess) {
-				gAnlysDict.categories[category].analyzers.Add(analyzer);
+				//gAnlysDict.categories[category].candidates.Add(analyzer);
+				var categoryCandHolder = gAnlysDict.categories[category];
+				if (isPolymorphicWord) {
+					foreach (var morhpeme in contentMorphemes) {
+						preparer.AddWordCandidate(morhpeme, analyzer, categoryCandHolder);
+					}
+				}
+				else {
+					categoryCandHolder.candidates.Add(analyzer);
+				}
 			};
 			foreach (var name in names) {
 				gAnlysDict.dict[name] = analyzer;
@@ -314,5 +326,47 @@ namespace AGBLang.StdUtil {
 			dict.TryGetValue(key, out IncrementalGAnalyzer found);
 			return found;
 		}
+	}
+	public class AnalyzePreparer {
+		public Dictionary<string, List<AnalyzerInfo>> wordCandidateInfoDict = new Dictionary<string, List<AnalyzerInfo>>(System.StringComparer.CurrentCultureIgnoreCase);
+		public Dictionary<IGAnlys_Candidates, List<AnalyzerInfo>> nestedCandidateInfo = new Dictionary<IGAnlys_Candidates, List<AnalyzerInfo>>();
+		public List<string> activatedWords = new List<string>();
+		public void AddWordCandidate(string word, IncrementalGAnalyzer condidateAnalyzer, IGAnlys_Candidates candidateHolder) {
+			wordCandidateInfoDict.TryGetValue(word, out var wordCandInfos);
+			if(wordCandInfos == null){
+				wordCandInfos = wordCandidateInfoDict[word] = new List<AnalyzerInfo>();
+			}
+			var info = wordCandInfos.Find((elem) => elem.condidateAnalyzer == condidateAnalyzer);
+			if(info == null){
+				info = new AnalyzerInfo { condidateAnalyzer = condidateAnalyzer };
+				wordCandInfos.Add(info);
+			}
+			info.candidateHolders.Add(candidateHolder);
+
+		}
+		public void FeedMorpheme(Morpheme morpheme) {
+			wordCandidateInfoDict.TryGetValue(morpheme.word, out var wordCandInfos);
+			if (wordCandInfos != null) {
+				activatedWords.Add(morpheme.word);
+				foreach (var wordCandInfo in wordCandInfos) {
+					foreach (var candidateHolder in wordCandInfo.candidateHolders) {
+						Utilities.AddIfNotDuplicated(candidateHolder.candidates, wordCandInfo.condidateAnalyzer);
+					}
+				}
+			}
+		}
+		public void Init() {
+			foreach (var word in activatedWords) {
+				foreach (var info in wordCandidateInfoDict[word]) {
+					foreach (var holder in info.candidateHolders) {
+						holder.candidates.Remove(info.condidateAnalyzer);
+					}
+				}
+			}
+		}
+	}
+	public class AnalyzerInfo {
+		public IncrementalGAnalyzer condidateAnalyzer;
+		public List<IGAnlys_Candidates> candidateHolders = new List<IGAnlys_Candidates>();
 	}
 }

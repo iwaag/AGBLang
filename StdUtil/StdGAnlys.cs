@@ -5,11 +5,20 @@ using AGDev;
 namespace AGBLang.StdUtil {
 	public class StdGrammarAnalyzer : GrammarAnalyzer {
 		public IncrementalGAnalyzer incrGAnalyzer;
+		public AnalyzePreparer analyzePreparer;
 		void GrammarAnalyzer.AnalyzeGrammar(GAnlysInput input, Taker<GrammarBlock> listener) {
 			var result = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.sentenceCluster };
 			Action<GrammarBlock> adder = (gBlock) => result.AddBlock(gBlock);
 			var nextInput = input;
 			while (true) {
+				//prepare
+				analyzePreparer.Init();
+				foreach (var morpheme in input.followings) {
+					analyzePreparer.FeedMorpheme(morpheme);
+					if(morpheme.id == 2){
+						break;
+					}
+				}
 				var easyLis = new EasyIncrGAnalysListener {};
 				incrGAnalyzer.Analyze(nextInput, easyLis);
 				if (!easyLis.didMatch) {
@@ -256,6 +265,8 @@ namespace AGBLang.StdUtil {
 		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
 			var easyLis = new EasyIncrGAnalysListener();
 			baseAnalyzer.Analyze(input, easyLis);
+
+
 			if (easyLis.didMatch) {
 				var alt = new PrvtAltIGAnlys { input = input, parent = this, previousAlt = easyLis.alternative, analyzers = new List<IncrementalGAnalyzer> { baseAnalyzer } };
 				listener.OnMatch(easyLis.nextInput, easyLis.listener, alt);
@@ -279,6 +290,13 @@ namespace AGBLang.StdUtil {
 				}
 				#endregion
 				#region try repeat
+				/*if (parent.conjectionAnalyzer != null && !parent.isConjectionOptional) {
+					var easyConjLis = new EasyIncrGAnalysListener();
+					parent.conjectionAnalyzer.Analyze(input, easyConjLis);
+					if (!easyConjLis.didMatch) {
+						return;
+					}
+				}*/
 				var newAnalyzers = new List<IncrementalGAnalyzer>(analyzers);
 				if (parent.conjectionAnalyzer != null) {
 					if (parent.isConjectionOptional)
@@ -557,7 +575,7 @@ namespace AGBLang.StdUtil {
 					);
 				}
 				else {
-					if (nextAnalyzerIndex < parent.analyzers.Count) {
+					if (nextAnalyzerIndex < parent.candidates.Count) {
 						clientListner.OnMatch(nextInput, listener, new UnitAltAnlys { parent = parent, nextIndex = nextAnalyzerIndex, originalInput = originalInput });
 					}
 					else {
@@ -578,18 +596,20 @@ namespace AGBLang.StdUtil {
 				var innerListener = new SubListener { clientListner = listener, parent = parent, nextAnalyzerIndex = index, originalInput = originalInput };
 				if (subAltAnalyzer != null)
 					subAltAnalyzer.AnalyzeAgain(innerListener);
-				while (!innerListener.didHit && index < parent.analyzers.Count) {
+				while (!innerListener.didHit && index < parent.candidates.Count) {
 					innerListener.nextAnalyzerIndex++;
-					parent.analyzers[index].Analyze(originalInput, innerListener);
+					parent.candidates[index].Analyze(originalInput, innerListener);
 					index++;
 				}
 			}
 		}
-		public List<IncrementalGAnalyzer> analyzers = new List<IncrementalGAnalyzer>();
+		public List<IncrementalGAnalyzer> candidates = new List<IncrementalGAnalyzer>();
 		void IncrementalGAnalyzer.Analyze(GAnlysInput input, IncrGAnalysisListener listener) {
+			if (candidates.Count == 0)
+				return;
 			var innerListener = new SubListener { clientListner = listener, parent = this, nextAnalyzerIndex = 1, originalInput = input };
-			while (!innerListener.didHit && innerListener.nextAnalyzerIndex-1 < analyzers.Count) {
-				analyzers[innerListener.nextAnalyzerIndex-1].Analyze(input, innerListener);
+			while (!innerListener.didHit && innerListener.nextAnalyzerIndex-1 < candidates.Count) {
+				candidates[innerListener.nextAnalyzerIndex-1].Analyze(input, innerListener);
 				innerListener.nextAnalyzerIndex++;
 
 			}

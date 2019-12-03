@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using AGDev;
+
 namespace AGBLang {
 	#region behavior
 	public interface BehaviorReadySupport {

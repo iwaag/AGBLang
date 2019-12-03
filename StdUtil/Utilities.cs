@@ -408,6 +408,7 @@ namespace AGBLang.StdUtil {
 		public static readonly GrammarUnit pronoun = new MinimumGBUnit { word = "Pronoun" };
 		public static readonly GrammarUnit plural = new MinimumGBUnit { word = "Plural" };
 		public static readonly GrammarUnit unreadable = new MinimumGBUnit { word = "Unreadable" };
+		public static readonly GrammarUnit passive = new MinimumGBUnit { word = "Passive" };
 	}
 	public class MinimumGBUnit : GrammarUnit {
 		public string word;
@@ -488,6 +489,38 @@ namespace AGBLang.StdUtil {
 				modifier = new ExpansiveMutableGBlock { metaForCluster = StdMetaInfos.modifierCluster };
 			}
 			modifier.AddBlock(block);
+		}
+	}
+	public class GBlockBuilder
+	{
+		public string word = "";
+		public List<GBlockBuilder> blocks = new List<GBlockBuilder>();
+		public List<GrammarUnit> metaInfos = new List<GrammarUnit>();
+		public List<GBlockBuilder> modifiers = new List<GBlockBuilder>();
+		public MutableGrammarBlock Build() {
+			MutableGrammarBlock mainBlock = null;
+			if (blocks.Count == 0) {
+				if (string.IsNullOrEmpty(word))
+					return null;
+				mainBlock = new StdMutableGUnit(word);
+				
+			} else if (blocks.Count == 1) {
+				mainBlock = blocks[0].Build();
+			} else if (blocks.Count > 1) {
+				var mainCluster = new StdMutableClusterGBlock();
+				foreach (var subBlock in blocks) {
+					(mainCluster as MutableClusterGrammarBlock).AddBlock(subBlock.Build());
+				}
+				mainBlock = mainCluster;
+			}
+			foreach (var meta in metaInfos) {
+				mainBlock.AddMetaInfo(meta);
+			}
+			foreach (var mod in modifiers) {
+				mainBlock.AddModifier(mod.Build());
+			}
+			return mainBlock;
+
 		}
 	}
 	public class ExpansiveMutableGBlock : GrammarBlock {

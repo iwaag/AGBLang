@@ -71,11 +71,12 @@ namespace AGBLang.StdUtil {
 				var or = new IGAnlys_Word { };
 				or.AddMorphemeText("or");
 				var quote = new IGAnlys_Quote { morphemeID = 3 };
-				conjCand.analyzers.Add(and);
-				conjCand.analyzers.Add(or);
-				conjCand.analyzers.Add(quote);
+				conjCand.candidates.Add(and);
+				conjCand.candidates.Add(or);
+				conjCand.candidates.Add(quote);
 				var conjGAnlys = new IGAnlys_RepeatableBlock { baseAnalyzer = conjCand };
 				FormatReader.cojunctionIGAnlys = conjGAnlys;
+				FormatReader.preparer = new AnalyzePreparer();
 			}
 			#endregion
 			var dictionaryJsonText = File.ReadAllText(dictionaryFilePath);
@@ -83,7 +84,10 @@ namespace AGBLang.StdUtil {
 			reader.subReader.Push(new GrammarDictRoot { gAnlysDict = gDict });
 			reader.Read(dictionaryJsonText);
 			var rootGAnlys = gDict.dict["RootUnit"];
-			nlProcessor = new MGSyntacticProcessor { gAnalyzer = new StdGrammarAnalyzer { incrGAnalyzer = rootGAnlys }, mAnalyzer = mAnlys };
+			nlProcessor = new MGSyntacticProcessor {
+				gAnalyzer = new StdGrammarAnalyzer { incrGAnalyzer = rootGAnlys, analyzePreparer = FormatReader.preparer },
+				mAnalyzer = mAnlys
+			};
 		}
 
 		void NaturalLanguageProcessor.PerformSyntacticProcess(string naturalLanguage, Taker<GrammarBlock> listener) {
