@@ -13,7 +13,7 @@ namespace AGBLang.StdUtil {
 			while (true) {
 				//prepare
 				analyzePreparer.Init();
-				foreach (var morpheme in input.followings) {
+				foreach (var morpheme in nextInput.followings) {
 					analyzePreparer.FeedMorpheme(morpheme);
 					if(morpheme.id == 2){
 						break;
