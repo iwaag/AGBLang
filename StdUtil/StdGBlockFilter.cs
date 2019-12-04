@@ -26,16 +26,17 @@ namespace AGBLang.StdUtil {
 		GBlockConverter GBlockConvertListener.modConverter => PassThroughGBlockConverter.instance;
 		void GBlockConvertListener.AdditionalEdit(MutableGrammarBlock mgBlock) {}
 	}
-	public class StdGBlockConvertListener : GBlockConvertListener {
-		GBlockConverter GBlockConvertListener.subBlockConverter => _subBlockConverter;
-
-		GBlockConverter GBlockConvertListener.metaConverter => _metaConverter;
-
-		GBlockConverter GBlockConvertListener.modConverter => _modConverter;
+	public class MixedGBlockConvertListener : GBlockConvertListener {
+		GBlockConverter GBlockConvertListener.subBlockConverter => _subBlockConverter != null ? _subBlockConverter : _baseLisetner?.subBlockConverter;
+		GBlockConverter GBlockConvertListener.metaConverter => _metaConverter != null ? _metaConverter : _baseLisetner?.metaConverter;
+		GBlockConverter GBlockConvertListener.modConverter => _modConverter != null ? _modConverter : _baseLisetner?.modConverter;
 		public GBlockConverter _subBlockConverter;
 		public GBlockConverter _metaConverter;
 		public GBlockConverter _modConverter;
-		void GBlockConvertListener.AdditionalEdit(MutableGrammarBlock mgBlock) {}
+		public GBlockConvertListener _baseLisetner;
+		void GBlockConvertListener.AdditionalEdit(MutableGrammarBlock mgBlock) {
+			_baseLisetner?.AdditionalEdit(mgBlock);
+		}
 	}
 	public class RootGBlockConverter : GBlockConverter {
 		public GBlockConverter_Replace replacer = new GBlockConverter_Replace();
@@ -76,7 +77,7 @@ namespace AGBLang.StdUtil {
 	public class StdGBlockFilter : ImmediateGiver<GrammarBlock, GrammarBlock> {
 		public System.Action<GrammarBlock> onBeginSentenceLine;
 		GrammarBlock ImmediateGiver<GrammarBlock, GrammarBlock>.PickBestElement(GrammarBlock key) {
-			var listener = new StdGBlockConvertListener();
+			var listener = new MixedGBlockConvertListener();
 			var rootConv = new RootGBlockConverter();
 			listener._metaConverter = GBlockConverter_Default.instance;
 			listener._modConverter = rootConv;

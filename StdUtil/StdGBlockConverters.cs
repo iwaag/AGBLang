@@ -13,13 +13,24 @@ namespace AGBLang.StdUtil {
 			GBlockConverter modConv = null
 		) {
 			if (sourceBlock.metaInfo != null) {
-				var result = listener.metaConverter.ConvertGBlock(sourceBlock.metaInfo, listener);
+				var metaLis = new MixedGBlockConvertListener {
+					_subBlockConverter = listener.metaConverter,
+					_metaConverter = PassThroughGBlockConverter.instance,
+					_modConverter = PassThroughGBlockConverter.instance
+				};
+				var result = listener.metaConverter.ConvertGBlock(sourceBlock.metaInfo, metaLis);
 				if (result.result != null) {
 					newBlock.AddMetaInfo(result.result);
 				}
 			}
 			if (sourceBlock.modifier != null) {
-				var result = listener.modConverter.ConvertGBlock(sourceBlock.modifier, listener);
+				var modLis = new MixedGBlockConvertListener {
+					_subBlockConverter = listener.modConverter,
+					_metaConverter = listener.metaConverter,
+					_modConverter = listener.modConverter,
+					_baseLisetner = listener
+				};
+				var result = listener.modConverter.ConvertGBlock(sourceBlock.modifier, modLis);
 				if (result.result != null) {
 					newBlock.AddModifier(result.result);
 				}
@@ -45,7 +56,6 @@ namespace AGBLang.StdUtil {
 			if (sourceGBlock.unit == null)
 				return default(GBlockConvertResult);
 			if (number.TryGetValue(sourceGBlock.unit.word, out var value)) {
-				
 				if(value == null) {
 					return new GBlockConvertResult(true, null);
 				}
@@ -147,7 +157,6 @@ namespace AGBLang.StdUtil {
 #endif
 			MutableGrammarBlock converted = null;
 			#region passive only
-			
 			if (passiveVerbList.Count > 0) {
 				var newSVCluster = new StdMutableClusterGBlock { };
 				StdMutableClusterGBlock newSV = null;
@@ -158,11 +167,28 @@ namespace AGBLang.StdUtil {
 					activizedVerb.AddModifier(convertedSubject);
 					(newSV as MutableClusterGrammarBlock).AddBlock(activizedVerb);
 					(newSVCluster as MutableClusterGrammarBlock).AddBlock(newSV);
+					(newSV as MutableClusterGrammarBlock).AddMetaInfo(sourceGBlock.metaInfo);
 				}
 				if (passiveVerbList.Count == 1) {
 					converted = newSV;
+					GBlockConvertUtility.ApplyModAndMeta(converted, sourceGBlock, listener);
 				} else {
 					converted = newSVCluster;
+					var convLis = new MixedGBlockConvertListener {
+						_baseLisetner = listener,
+						_metaConverter = new ClusterGBlockConverter {
+							converters = new List<GBlockConverter> {
+								new GBlockConverter_Replace {
+									number = new Dictionary<string, GrammarBlock>{
+										{ StdMetaInfos.sv.word, StdMetaInfos.sentenceCluster },
+										{  StdMetaInfos.conditionSV.word, StdMetaInfos.sentenceCluster }
+									}
+								},
+								listener.metaConverter
+							}
+						}
+					};
+					GBlockConvertUtility.ApplyModAndMeta(converted, sourceGBlock, convLis);
 				}
 			}
 			#endregion
@@ -170,7 +196,7 @@ namespace AGBLang.StdUtil {
 			if (converted == null) {
 				return default(GBlockConvertResult);
 			}
-			GBlockConvertUtility.ApplyModAndMeta(converted, sourceGBlock, listener);
+			
 			return new GBlockConvertResult(true, converted);
 			#endregion
 		}
@@ -210,5 +236,7 @@ namespace AGBLang.StdUtil {
 				return new GBlockConvertResult(true, null);
 			return default(GBlockConvertResult);
 		}
+	}
+	class PrvtUtil {
 	}
 }
