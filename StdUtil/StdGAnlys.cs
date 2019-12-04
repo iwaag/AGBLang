@@ -28,7 +28,7 @@ namespace AGBLang.StdUtil {
 				easyLis.listener.OnResultRequested(adder);
 			}
 			if (result.content != null) {
-				listener.Take(result.content);
+				listener.Take(result);
 			}
 			else {
 				listener.None();

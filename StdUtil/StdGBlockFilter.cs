@@ -84,7 +84,7 @@ namespace AGBLang.StdUtil {
 			listener._subBlockConverter = rootConv;
 
 			if (GrammarBlockUtils.HasMetaInfo(key, StdMetaInfos.sentenceCluster.word) && key.cluster != null) {
-				var newCluster = new StdClusterGrammarBlock();
+				var newCluster = new StdMutableClusterGBlock();
 				foreach (var sentence in key.cluster.blocks) {
 					rootConv.SetPronounSolution(sentence, listener);
 					var converterSetnence = (listener as GBlockConvertListener).subBlockConverter.ConvertGBlock(sentence, listener);

@@ -494,13 +494,15 @@ namespace AGBLang.StdUtil {
 	public class GBlockBuilder
 	{
 		public string word = "";
+		public MutableGrammarBlock block = null;
 		public List<GBlockBuilder> blocks = new List<GBlockBuilder>();
 		public List<GrammarUnit> metaInfos = new List<GrammarUnit>();
 		public List<GBlockBuilder> modifiers = new List<GBlockBuilder>();
+		public GrammarUnit clusterMeta = null;
 		public MutableGrammarBlock Build() {
 			MutableGrammarBlock mainBlock = null;
 			if (blocks.Count == 0) {
-				if (string.IsNullOrEmpty(word))
+				if (string.IsNullOrEmpty(word) && block == null)
 					return null;
 				mainBlock = new StdMutableGUnit(word);
 				
@@ -515,6 +517,9 @@ namespace AGBLang.StdUtil {
 			}
 			foreach (var meta in metaInfos) {
 				mainBlock.AddMetaInfo(meta);
+			}
+			if(clusterMeta!=null){
+				mainBlock.AddMetaInfo(clusterMeta);
 			}
 			foreach (var mod in modifiers) {
 				mainBlock.AddModifier(mod.Build());
