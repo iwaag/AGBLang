@@ -322,7 +322,7 @@ namespace AGBLang.StdUtil {
 		public void AddCandidate(string name, IGAnlys_Candidates candidate) {
 			dict[name] = categories[name] = new IGAnlys_Candidates();
 		}
-		IncrementalGAnalyzer ImmediateGiver<IncrementalGAnalyzer, string>.PickBestElement(string key) {
+		IncrementalGAnalyzer ImmediateGiver<IncrementalGAnalyzer, string>.Give(string key) {
 			dict.TryGetValue(key, out IncrementalGAnalyzer found);
 			return found;
 		}

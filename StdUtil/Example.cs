@@ -98,7 +98,7 @@ namespace AGBLang.StdUtil {
             public Taker<GrammarBlock> listener;
             void Taker<GrammarBlock>.Take(GrammarBlock item) {
                 ImmediateGiver<GrammarBlock, GrammarBlock> filter = new StdGBlockFilter();
-                var filteredGBlock = filter.PickBestElement(item);
+                var filteredGBlock = filter.Give(item);
                 listener.Take(filteredGBlock);
             }
 			void Taker<GrammarBlock>.None() {

@@ -877,9 +877,9 @@ namespace AGBLang.StdUtil {
 	public class StdBehaverGiver : ImmediateGiver<Behaver, GrammarBlock> {
 		public ImmediateGiver<Behaver, GrammarBlock> clientBehaverGiver;
 		public List<Behaver> behavers = new List<Behaver>();
-		Behaver ImmediateGiver<Behaver, GrammarBlock>.PickBestElement(GrammarBlock key) {
+		Behaver ImmediateGiver<Behaver, GrammarBlock>.Give(GrammarBlock key) {
 			var foundBehaver = behavers.Find((behaver) => behaver.MatchAttribue(key) == AttributeMatchResult.POSITIVE);
-			return foundBehaver != null ? foundBehaver : clientBehaverGiver.PickBestElement(key);
+			return foundBehaver != null ? foundBehaver : clientBehaverGiver.Give(key);
 		}
 	}
 	public class StubBehaviorTrigger : BehaviorTrigger {

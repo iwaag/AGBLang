@@ -76,7 +76,7 @@ namespace AGBLang.StdUtil {
 	}
 	public class StdGBlockFilter : ImmediateGiver<GrammarBlock, GrammarBlock> {
 		public System.Action<GrammarBlock> onBeginSentenceLine;
-		GrammarBlock ImmediateGiver<GrammarBlock, GrammarBlock>.PickBestElement(GrammarBlock key) {
+		GrammarBlock ImmediateGiver<GrammarBlock, GrammarBlock>.Give(GrammarBlock key) {
 			var listener = new MixedGBlockConvertListener();
 			var rootConv = new RootGBlockConverter();
 			listener._metaConverter = GBlockConverter_Default.instance;
