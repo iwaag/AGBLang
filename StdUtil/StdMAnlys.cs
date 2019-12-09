@@ -104,7 +104,7 @@ namespace AGBLang.StdUtil {
 	public class NumberReader : GeneralReader {
 		bool GeneralReader.ReadBlock(string text, int startIndex, int lastIndex, out Morpheme product) {
 			product = null;
-			var part = text.Substring(startIndex, lastIndex - startIndex);
+			var part = text.Substring(startIndex, lastIndex - startIndex + 1);
 			if (float.TryParse(part, out float number)) {
 				product = new Morpheme { id = 6, word = part };
 				return true;
