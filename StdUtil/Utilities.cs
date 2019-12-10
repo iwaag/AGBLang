@@ -553,7 +553,7 @@ namespace AGBLang.StdUtil {
 
 		ClusterGrammarBlock GrammarBlock.cluster => cluster;
 		public void AddBlock(GrammarBlock gramarBlock) {
-			if (GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.metaCluster.word) || GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.clusterExtractable.word)) {
+			if (GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.modifierCluster.word) || GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.metaCluster.word) || GrammarBlockUtils.HasMetaInfo(gramarBlock, StdMetaInfos.clusterExtractable.word)) {
 				foreach (var subBlock in gramarBlock.cluster.blocks) {
 					blocks.Add(subBlock);
 				}
